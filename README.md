@@ -1,4 +1,4 @@
-# create Snapshot for the fresh installation of debian64
+# Create Snapshot for the fresh installation of debian64
 1. timeshift for snapshot, after debian64 installation
    sudo timeshift --create --comments "New installation"
    sudo timeshift --restore, in case needed
