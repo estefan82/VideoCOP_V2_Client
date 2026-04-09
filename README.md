@@ -11,8 +11,8 @@
 # Activate venv
 4. source venv/bin/activate
 
-5. 
-
+# install requirements
+5. pip install -r requirements.txt
 
 # Deactivate venv
 6. deactivate
