@@ -15,6 +15,28 @@ from websockets.asyncio.client import connect
 
 # To do Camera init
 
+def find_working_camera(max_devices=10):
+    for i in range(max_devices):
+        cap = cv2.VideoCapture(i, cv2.CAP_V4L2)
+        if not cap.isOpened():
+            continue
+
+        ret, frame = cap.read()
+        cap.release()
+
+        if ret and frame is not None:
+            print(f"Cámara válida encontrada en índice {i}")
+            return i
+
+    return None
+
+self.camera_index = find_working_camera()
+
+if self.camera_index is None:
+    raise Exception("No se encontró ninguna cámara válida")
+
+cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
+
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
         # configparser
