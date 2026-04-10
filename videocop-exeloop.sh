@@ -2,7 +2,7 @@
 # Script para iniciar VideoCOP con control_cliente.py y gui-control.py
 
 # Ir a la carpeta correcta
-cd /home/admin/videocop/ || { echo "No se encontró la carpeta /home/admin/VideoCOP/client_v1"; exit 1; }
+cd /home/admin/VideoCOP/ || { echo "No se encontró la carpeta /home/admin/VideoCOP/client_v1"; exit 1; }
 
 # Función para mantener activo control-client
 iniciar_control_cliente() {
@@ -21,8 +21,9 @@ iniciar_control_cliente &
 
 # Ejecutar button-client.py (en segundo plano)
 echo "Iniciando button-client..."
-x-terminal-emulator -e python3 button-client.py &
+python3 button-client.py &
 
 # Ejecutar gui-control.py (en primer plano)
 echo "Iniciando ui-client..."
 ./ui-client
+

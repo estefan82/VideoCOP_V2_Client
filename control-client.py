@@ -308,7 +308,6 @@ class WebSocketClient:
                 print(f"[Error leyendo JSON] {e}")
 
             await asyncio.sleep(interval)
-
     async def update_json_loop(self, interval=1):
         """
         Monitoriza input.json y envía eventos al servidor sin debounce.
@@ -356,7 +355,6 @@ class WebSocketClient:
                 print(f"[Error leyendo JSON] {e}")
 
             await asyncio.sleep(interval)
-
     async def _cooldown_timer(self, cooldown):
         """Timer para desbloquear cooldown después de X segundos."""
         await asyncio.sleep(cooldown)
@@ -405,7 +403,6 @@ class WebSocketClient:
                 self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
                 await asyncio.sleep(1)
                 sys.exit(0)
-
 
     # Audio block
     def play_audio_chunk(self, base64_data):

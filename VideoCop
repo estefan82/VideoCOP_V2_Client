@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=VideoCop
+Exec=lxterminal -e /home/videocop/PI/videocop.sh
+Icon=utilities-terminal
+Comment=Ejecuta el monitor VideoCop
+Terminal=True
+Name[en_GB]=VideoCopexeloop
