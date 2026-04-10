@@ -13,6 +13,8 @@ import configparser
 from datetime import datetime
 from websockets.asyncio.client import connect
 
+# To do Camera init
+
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
         # configparser
