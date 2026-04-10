@@ -36,6 +36,8 @@ if self.camera_index is None:
     raise Exception("No se encontró ninguna cámara válida")
 
 cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
+# implementar esto de arriba en client
+
 
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
