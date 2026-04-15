@@ -19,7 +19,7 @@ git pull origin dev
 git merge feature/nombre-funcion
 git push origin dev
 
-🔹 4. Cuando todo está estable → a main
+🔹 4. Cuando está estable → a main
 git checkout main
 git pull origin main
 git merge dev
@@ -28,3 +28,6 @@ git push origin main
 🔹 5. Limpieza (opcional pero pro)
 git branch -d feature/nombre-funcion
 git push origin --delete feature/nombre-funcion
+
+🔹 6. Cambiar de rama
+git checkout nombre-rama
