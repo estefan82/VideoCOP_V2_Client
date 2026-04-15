@@ -1,9 +1,9 @@
 {
-    "id": "---",
-    "status": "disconnected",
+    "id": "A-113-local",
+    "status": "connected",
     "call_status": false,
     "audio_stream": false,
     "video_stream": false,
-    "server_message": "",
+    "server_message": "Welcome to VideoCOP",
     "only_text": false
 }
