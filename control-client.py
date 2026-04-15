@@ -13,30 +13,11 @@ import configparser
 from datetime import datetime
 from websockets.asyncio.client import connect
 
-# To do Camera init
+"""
+Prueba de configuración por ID de cámara para la pi 4 de fernan
 
-"""def find_working_camera(max_devices=10):
-    for i in range(max_devices):
-        cap = cv2.VideoCapture(i, cv2.CAP_V4L2)
-        if not cap.isOpened():
-            continue
 
-        ret, frame = cap.read()
-        cap.release()
-
-        if ret and frame is not None:
-            print(f"Cámara válida encontrada en índice {i}")
-            return i
-
-    return None
-
-self.camera_index = find_working_camera()
-
-if self.camera_index is None:
-    raise Exception("No se encontró ninguna cámara válida")
-
-cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
-# implementar esto de arriba en client"""
+"""
 
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
@@ -85,6 +66,10 @@ class WebSocketClient:
             #sd.default.device = ("hw:0,0", "hw:0,0")
             sd.default.device = (self.input_hw, self.output_hw )
             print (f"Selected audio device: {self.input_hw},{self.output_hw}")
+
+
+        #camera device para fernan pi4
+        self.camera_device = "/dev/v4l/by-id/usb-VGA_USB_Camera_VGA_USB_Camera_2024022001-video-index0"
 
         self.video_width = self.config.getint("video","video_width")
         self.video_height = self.config.getint("video","video_height")
@@ -520,7 +505,9 @@ class WebSocketClient:
     async def video_sender(self, width=640, height=480, fps=20):
         """Captura video y lo envía como JSON por el WebSocket existente."""
         try:
-            cap = cv2.VideoCapture(0)
+            #cap = cv2.VideoCapture(0)
+            cap = cv2.VideoCapture(self.camera_device,cv2.CAP_V4L2)
+
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             cap.set(cv2.CAP_PROP_FPS, fps)
@@ -585,7 +572,9 @@ class WebSocketClient:
     async def send_snapshot(self, width=640, height=480):
         """Captura una sola imagen y la envía por el WebSocket."""
         try:
-            cap = cv2.VideoCapture(0)
+            #cap = cv2.VideoCapture(0)
+            cap = cv2.VideoCapture(self.camera_device, cv2.CAP_V4L2)
+
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
