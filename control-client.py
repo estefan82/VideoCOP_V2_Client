@@ -17,6 +17,16 @@ from websockets.asyncio.client import connect
 Prueba de configuración por ID de cámara para la pi 4 de fernan
 
 
+To do
+- version control
+- list audio video device
+- send audio video device info
+
+
+list-camera ready to save on .ini
+to do 
+load on control-client.py from configparses
+
 """
 
 class WebSocketClient:
