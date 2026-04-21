@@ -4,7 +4,6 @@ import platform
 import configparser
 import time
 
-
 def list_cameras():
     cam_list = []
     system = platform.system()
@@ -45,7 +44,6 @@ def select_and_save_camera00(file_path="control-client.ini"):
         config.write(f)
 
     return selected_path
-
 
 def select_and_save_camera(file_path="control-client.ini"):
     config = configparser.ConfigParser()

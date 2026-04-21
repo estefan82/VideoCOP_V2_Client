@@ -25,7 +25,6 @@ To do
 
 list-camera ready to save on .ini
 to do 
-load on control-client.py from configparses
 
 """
 
@@ -78,8 +77,10 @@ class WebSocketClient:
             print (f"Selected audio device: {self.input_hw},{self.output_hw}")
 
 
+        self.camera_device = self.config.getint("video", "camera_device", fallback='No video device')
+
         #camera device para fernan pi4
-        self.camera_device = "/dev/v4l/by-id/usb-VGA_USB_Camera_VGA_USB_Camera_2024022001-video-index0"
+        #self.camera_device = "/dev/v4l/by-id/usb-VGA_USB_Camera_VGA_USB_Camera_2024022001-video-index0"
 
         self.video_width = self.config.getint("video","video_width")
         self.video_height = self.config.getint("video","video_height")
@@ -118,7 +119,7 @@ class WebSocketClient:
             17: 'video_stop'
         }
 
-        # data json example, (for better comp)
+        # data JSON example, (for better comp)
         self.data_example = {
             "id": "client_id",
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -399,10 +400,10 @@ class WebSocketClient:
                     print(" Conectado al servidor.")
                     self.output_json(self.client_id, True, audio_stream=False, video_stream=False, only_text=False)
 
-                    #clean input json once
+                    #clean input JSON once
                     asyncio.create_task(self.clean_input_json())
 
-                    # start loop for input json
+                    # start loop for input JSON
                     json_task = asyncio.create_task(self.update_json_loop())
 
                     await asyncio.gather(
