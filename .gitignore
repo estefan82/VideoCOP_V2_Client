@@ -1,3 +1,6 @@
 .idea
 .venv
 .json
+
+# Archivo de pruebas
+camera-test.py
