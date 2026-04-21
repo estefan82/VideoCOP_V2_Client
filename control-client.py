@@ -77,8 +77,8 @@ class WebSocketClient:
             print (f"Selected audio device: {self.input_hw},{self.output_hw}")
 
 
-        self.camera_device = self.config.getint("video", "camera_device", fallback='No video device')
-
+        self.camera_device = self.config.get("video", "camera_device", fallback='No video device selected')
+        print (f'Video device: {self.camera_device}')
         #camera device para fernan pi4
         #self.camera_device = "/dev/v4l/by-id/usb-VGA_USB_Camera_VGA_USB_Camera_2024022001-video-index0"
 

@@ -21,30 +21,6 @@ def list_cameras():
                 cap.release()
     return cam_list
 
-
-def select_and_save_camera00(file_path="control-client.ini"):
-    config = configparser.ConfigParser()
-    cameras = list_cameras()
-
-    if not cameras:
-        print("Error: No se detectaron cámaras.")
-        return None
-
-    print("\n--- CÁMARAS DISPONIBLES ---")
-    for idx, cam in enumerate(cameras):
-        print(f"[{idx}] {cam}")
-
-    idx_sel = int(input("\nSelecciona el índice: "))
-    selected_path = cameras[idx_sel]
-
-    # Guardar en .ini
-    if not config.has_section('video'): config.add_section('video')
-    config.set('video', 'camera_device', selected_path)
-    with open(file_path, 'w') as f:
-        config.write(f)
-
-    return selected_path
-
 def select_and_save_camera(file_path="control-client.ini"):
     config = configparser.ConfigParser()
 
@@ -63,12 +39,17 @@ def select_and_save_camera(file_path="control-client.ini"):
     for idx, cam in enumerate(cameras):
         print(f"[{idx}] {cam}")
 
-    try:
-        idx_sel = int(input("\nSelecciona el índice de la cámara: "))
-        selected_path = cameras[idx_sel]
-    except (ValueError, IndexError):
-        print("Selección no válida.")
-        return None
+    if len(cameras) == 1:
+        selected_path = cameras[0]
+        print(f'Single camera detected in:\n{selected_path}')
+
+    else:
+        try:
+            idx_sel = int(input("\nSelecciona el índice de la cámara: "))
+            selected_path = cameras[idx_sel]
+        except (ValueError, IndexError):
+            print("Selección no válida.")
+            return None
 
     # 2. Solo modificamos la sección [video] y la opción camera_device
     if not config.has_section('video'):
