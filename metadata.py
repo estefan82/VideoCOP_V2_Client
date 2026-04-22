@@ -9,6 +9,9 @@ add camera_list
 configparser in control_client.py for camera_device
 
 1.5.2
+take_snapshot.py to have manual control an camera
+external module
+
 1.5.3
 1.5.4
 1.5.5
