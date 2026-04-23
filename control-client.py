@@ -579,7 +579,7 @@ class WebSocketClient:
             self.video_task = None
         print("Transmisión de video detenida.")
 
-    #Snapshot block
+    # Snapshot block
     async def send_snapshot(self, width=640, height=480):
         """Captura una sola imagen y la envía por el WebSocket."""
         try:
@@ -616,6 +616,7 @@ class WebSocketClient:
         except Exception as e:
             print(f"Error enviando snapshot: {e}")
 
+    # Send JSON to server
     async def send_json(self, msg_type, text):
         #print ("sending json...")
         data = {
@@ -627,6 +628,7 @@ class WebSocketClient:
         print (data)
         await self.websocket.send(json.dumps(data))
 
+    # Send heartbeat not in use
     async def send_heartbeat(self):
         while True:
             if self.heartbeat > 0:
@@ -635,18 +637,19 @@ class WebSocketClient:
                     await self.send_json("ping", "keepalive")
                 except Exception:
                     print ("heartbeat reised and error")
-                    await self.cerrar_websocket()
+                    await self.websocket_close()
                     break
             else:
                 print ("heartbeat disable")
 
+    # Keyboard user input in console for test
     async def user_input(self):
         loop = asyncio.get_event_loop()
         while True:
             text = await loop.run_in_executor(None, input, "Mensaje ('exit' para salir): ")
 
             if text.lower() == "exit":
-                await self.cerrar_websocket()
+                await self.websocket_close()
                 print("Conexión cerrada correctamente.")
                 break
 
@@ -668,11 +671,14 @@ class WebSocketClient:
                 await self.stop_video()
                 continue
 
+            elif text.lower() == "sos":
+                await self.send_json(self.msg_type_server[1], "Emergency Call")
+
             else:
-                await self.send_json("client_message", text)
+                await self.send_json(self.msg_type_server[1], text)
                 print(f">>> Enviado: {text}")
 
-    async def cerrar_websocket(self):
+    async def websocket_close(self):
         """
         Cierra de forma segura una conexión WebSocket y termina el script.
         Compatible con websockets.asyncio.client.ClientConnection.

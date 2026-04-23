@@ -31,3 +31,6 @@ git push origin --delete feature/nombre-funcion
 
 🔹 6. Cambiar de rama
 git checkout nombre-rama
+
+🔹 7. Crear rama
+git checkout -b
