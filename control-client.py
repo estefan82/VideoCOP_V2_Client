@@ -658,11 +658,6 @@ class WebSocketClient:
                 await self.send_json("ping", "keepalive")
                 continue
 
-            elif text.lower() == "audio_chunk":
-                print ("ping sending ...")
-                await self.send_json("ping", "keepalive")
-                continue
-
             elif text.lower() == "video_start":
                 await self.start_video()
                 continue
@@ -678,6 +673,7 @@ class WebSocketClient:
                 await self.send_json(self.msg_type_server[1], text)
                 print(f">>> Enviado: {text}")
 
+    # Websocket close
     async def websocket_close(self):
         """
         Cierra de forma segura una conexión WebSocket y termina el script.
