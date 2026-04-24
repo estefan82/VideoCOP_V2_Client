@@ -10,8 +10,10 @@ import numpy as np
 import sys
 import signal
 import configparser
+import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
+
 
 """
 Prueba de configuración por ID de cámara para la pi 4 de fernan
@@ -30,6 +32,7 @@ to do
 
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
+        print(f">>> Starting {metadata.__name__} v: {metadata.__version__} <<<")
         # configparser
         # --- Detectar ruta base correctamente ---
         if getattr(sys, 'frozen', False):
