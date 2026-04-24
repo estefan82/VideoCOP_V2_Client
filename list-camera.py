@@ -64,10 +64,7 @@ def select_and_save_camera(file_path="control-client.ini"):
     print(f"\n[OK] Se ha actualizado 'camera_device' en {file_path}")
     return selected_path
 
-
-if __name__ == "__main__":
-    device = select_and_save_camera()
-
+def camera_test(device):
     if device:
         print(f"\nProbando cámara: {device}")
         cap = cv2.VideoCapture(device, cv2.CAP_V4L2 if platform.system() == "Linux" else cv2.CAP_DSHOW)
@@ -94,3 +91,10 @@ if __name__ == "__main__":
         cap.release()
         print("\n--- PROCESO FINALIZADO ---")
         print(f"Ya puedes revisar las imágenes en la carpeta '{output_dir}'")
+
+    else:
+        print ('No camera device found')
+
+
+if __name__ == "__main__":
+    camera_test(select_and_save_camera())
