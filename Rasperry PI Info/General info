@@ -1,0 +1,26 @@
+1. timeshift for snapshot
+
+    - sudo apt install timeshift
+    - sudo timeshift --create --comments "Antes de instalar X"
+
+    . ¿Qué hacer si el sistema falla y no inicia?
+    Si un cambio rompe el arranque y no puedes entrar al escritorio para usar la interfaz de Timeshift, no entres en pánico. Puedes restaurar desde la terminal de emergencia (si logras entrar) o poniendo la SD en otra PC con Linux:
+    Bash
+    sudo timeshift --restore
+
+2. Waveshare WM8960
+    - sudo apt-get -y update
+    - sudo apt-get -y upgrade
+
+    - git clone https://github.com/waveshare/WM8960-Audio-HAT
+
+    Install WM8960 driver:
+
+    cd WM8960-Audio-HAT
+    sudo chmod +x install.sh
+    sudo ./install.sh
+    sudo reboot
+
+    sudo dkms status
+    pi@raspberrypi:~ $ sudo dkms status
+    wm8960-soundcard, 1.0, 4.19.58-v7l+, armv7l: installed
