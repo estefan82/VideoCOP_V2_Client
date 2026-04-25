@@ -1,0 +1,16 @@
+1. Command Line Tools (CLI)
+CLI tools are the most powerful for scripting and deep hardware configuration. Most of these require the v4l-utils package.
+
+v4l2-ctl: The Swiss Army knife for Linux cameras.
+
+List devices:
+
+v4l2-ctl --list-devices
+
+List controls:
+
+v4l2-ctl -d /dev/video0 --list-ctrls (shows brightness, focus, exposure, etc.).
+
+Set a control:
+
+v4l2-ctl -d /dev/video0 --set-ctrl=brightness=128
