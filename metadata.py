@@ -14,6 +14,7 @@ __author__ = "Isaias Estefan Moro"
 
 1.5.3
 - Metadata file included
+- Send config-file on connect
 
 1.5.4
 1.5.5

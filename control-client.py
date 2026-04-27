@@ -4,6 +4,7 @@ import inspect
 import cv2
 import base64
 import queue
+import io
 import os
 import sounddevice as sd
 import numpy as np
@@ -55,15 +56,27 @@ class WebSocketClient:
         self.host = self.config["client"]["host"]
         self.port = self.config.getint("client","port")
 
+        #config general
+        self.config_version = self.config.get("general","version")
+
+        # check ini version
+        if metadata.__version__ != self.config_version:
+            self.config_version = metadata.__version__
+            self.config.set("general","version", self.config_version)
+            self.save_config_file()
+
+        # config client
         if ext_client_id:
             self.client_id = ext_client_id
             print ('[✓] Client ID set from argument:', self.client_id)
         else:
             self.client_id = self.config["client"]["id"]
 
+        # config client
         self.websocket = None
         self.uri = f"ws://{self.host}:{self.port}"
 
+        # config audio
         self.SAMPLE_RATE = self.config.getint("audio","sample_rate")
         self.CHANNELS = self.config.getint("audio","channels")
         self.FRAME_SIZE = self.config.getint("audio","frame_size")
@@ -79,7 +92,6 @@ class WebSocketClient:
             sd.default.device = (self.input_hw, self.output_hw )
             print (f"Selected audio device: {self.input_hw},{self.output_hw}")
 
-
         self.camera_device = self.config.get("video", "camera_device", fallback='No video device selected')
         print (f'Video device: {self.camera_device}')
         #camera device para fernan pi4
@@ -89,10 +101,12 @@ class WebSocketClient:
         self.video_height = self.config.getint("video","video_height")
         self.video_fps = self.config.getint("video","frames_second")
 
+        # status
         self.json_data = {}
         self.last_call_state = False
         self.cooldown = 10 # segundos de cooldown para evitar múltiples llamadas seguidas
 
+        # audio queue
         self.audio_queue = queue.Queue(maxsize=20) # Cola para audio entrante (bytes -> numpy float32 arrays)
         self.audio_stream = None # guard para el stream
         self.audio_active = False # Control del estado de audio full duplex
@@ -119,7 +133,9 @@ class WebSocketClient:
             14: 'snapshot_request',
             15: 'snapshot_response',
             16: 'video_start',
-            17: 'video_stop'
+            17: 'video_stop',
+            18: 'config_request',
+            19: 'config_send'
         }
 
         # data JSON example, (for better comp)
@@ -412,6 +428,7 @@ class WebSocketClient:
                     await asyncio.gather(
                         self.listen_messages(),
                         self.send_json(self.msg_type_server[0], "Hello"),
+                        self.send_config(self.client_id),
                         self.user_input() #for manual input from terminal
                     )
 
@@ -644,6 +661,46 @@ class WebSocketClient:
                     break
             else:
                 print ("heartbeat disable")
+
+    # Send config file
+    async def send_config(self, client_id):
+        """
+        Extrae la configuración de self.config, la empaqueta en el formato
+        JSON definido y la envía a través del websocket.
+        """
+        try:
+            # 1. Convertimos el objeto ConfigParser a una cadena de texto (String)
+            # Usamos StringIO para "engañar" al config.write y que escriba en memoria
+            string_stream = io.StringIO()
+            self.config.write(string_stream)
+            ini_content = string_stream.getvalue()
+
+            # 2. Preparamos el diccionario con tu estructura
+            # El contenido del .ini va en el campo "text"
+            payload = {
+                "id": self.client_id,  # O self.client_id si lo tienes dinámico
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "type": self.msg_type_server[19],
+                "text": ini_content
+            }
+
+            # 3. Convertimos el diccionario a una cadena JSON
+            json_message = json.dumps(payload)
+
+            # 4. Enviamos a través del websocket
+            # Asumiendo que 'self.websocket' es tu conexión activa
+            await self.websocket.send(json_message)
+
+            print("--- Configuración enviada con éxito ---")
+            print(ini_content)  # Esto te permite ver exactamente qué enviaste
+            print("---------------------------------------")
+
+        except Exception as e:
+            print(f"Error al enviar la configuración: {e}")
+    def save_config_file(self):
+        """Escribe el estado actual de self.config en el archivo .ini"""
+        with open(self.config_path, 'w', encoding='utf-8') as configfile:
+            self.config.write(configfile)
 
     # Keyboard user input in console for test
     async def user_input(self):
