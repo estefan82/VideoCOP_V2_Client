@@ -15,6 +15,13 @@ import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
 
+""" Important
+for pi 3 or 4
+
+remove input on:
+async def connect(self):
+"""
+
 
 """
 Prueba de configuración por ID de cámara para la pi 4 de fernan
@@ -429,7 +436,7 @@ class WebSocketClient:
                         self.listen_messages(),
                         self.send_json(self.msg_type_server[0], "Hello"),
                         self.send_config(self.client_id),
-                        self.user_input() #for manual input from terminal
+                        #self.user_input() #for manual input from terminal
                     )
 
                     # end loop for input json

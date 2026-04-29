@@ -24,3 +24,11 @@
     sudo dkms status
     pi@raspberrypi:~ $ sudo dkms status
     wm8960-soundcard, 1.0, 4.19.58-v7l+, armv7l: installed
+
+3. Permitir ping en windows
+    Abrir powershell en administrador
+
+    netsh advfirewall firewall add rule name="Permitir Ping" protocol=icmpv4:8,any dir=in action=allow
+
+4. install sound device en Rasperry pi
+    sudo apt install libportaudio2
