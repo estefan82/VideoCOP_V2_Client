@@ -31,8 +31,6 @@ To do
 - version control
 - list audio video device
 - send audio video device info
-
-
 list-camera ready to save on .ini
 to do 
 
