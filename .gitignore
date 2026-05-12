@@ -1,6 +1,8 @@
 .idea
 .venv
 .json
+__pycache__/
+capturas_test/
 
 # Archivo de pruebas
 camera-test.py
