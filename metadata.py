@@ -20,6 +20,7 @@ __author__ = "Isaias Estefan Moro"
 - delete input function from start websocket
 
 1.5.5
+- downsampling, in linux level
 
 1.5.6
 1.5.7
