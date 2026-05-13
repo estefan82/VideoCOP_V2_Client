@@ -112,7 +112,7 @@ class WebSocketClient:
         self.cooldown = 10 # segundos de cooldown para evitar múltiples llamadas seguidas
 
         # audio queue
-        self.audio_queue = queue.Queue(maxsize=20) # Cola para audio entrante (bytes -> numpy int16 arrays)
+        self.audio_queue = queue.Queue(maxsize=20) # Cola para audio entrante (bytes -> numpy float32 arrays)
         self.audio_stream = None # guard para el stream
         self.audio_active = False # Control del estado de audio full duplex
 
@@ -455,7 +455,7 @@ class WebSocketClient:
         """Recibe un chunk base64, decodifica y lo agrega a la cola."""
         try:
             audio_bytes = base64.b64decode(base64_data)
-            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+            audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
             # Iniciar el stream de salida en el bucle asyncio si aún no existe
             loop = asyncio.get_running_loop()
             if self.audio_stream is None:
@@ -494,7 +494,7 @@ class WebSocketClient:
         if self.audio_stream is None:
             def callback(indata, outdata, frames, time, status):
                 if not self.audio_active:
-                    outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                    outdata[:] = np.zeros((frames, self.CHANNELS), np.float32)
                     return  # Si se detuvo, no seguir procesando
 
                 try:
@@ -516,7 +516,7 @@ class WebSocketClient:
                         data = self.audio_queue.get_nowait()
                         outdata[:] = data.reshape(-1, self.CHANNELS)
                     except queue.Empty:
-                        outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                        outdata[:] = np.zeros((frames, self.CHANNELS), np.float32)
 
                 except Exception as e:
                     print(f"Error en callback: {e}")
@@ -526,7 +526,7 @@ class WebSocketClient:
                 samplerate=self.SAMPLE_RATE,
                 channels=self.CHANNELS,
                 blocksize=self.FRAME_SIZE,
-                dtype='int16',
+                dtype='float32',
                 callback=callback
             )
 
