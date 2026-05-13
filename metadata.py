@@ -23,7 +23,7 @@ __author__ = "Isaias Estefan Moro"
 - downsampling, in linux level
 
 1.6.0
-- from float32 to int16
+- from float32 to int16 - from float32 to int16, no retro compatibility
 
 1.5.6
 1.5.7
