@@ -1,6 +1,6 @@
 # metadata.py
 __name__ = "VideoCOP Control Client"
-__version__ = "1.6.0"
+__version__ = "1.6.2"
 __author__ = "Isaias Estefan Moro"
 
 """
@@ -24,6 +24,11 @@ __author__ = "Isaias Estefan Moro"
 
 1.6.0
 - from float32 to int16 - from float32 to int16, no retro compatibility
+
+1.6.1
+- audio queue add on control client
+
+1.6.2
 
 1.5.6
 1.5.7
