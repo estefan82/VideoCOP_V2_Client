@@ -571,6 +571,32 @@ class WebSocketClient:
 
         except Exception as e:
             print(f"[!] Error reproduciendo audio: {e}")
+    def stop_audio_output00(self):
+        """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
+        self.audio_active = False
+
+        if self.audio_stream is not None:
+            try:
+                self.audio_stream.stop()
+                self.audio_stream.close()
+                print("Stream de audio duplex detenido correctamente.")
+            except Exception as e:
+                print(f"Error cerrando stream de audio: {e}")
+            finally:
+                self.audio_stream = None
+
+        # Cancelar la tarea encargada de procesar el micrófono
+        if hasattr(self, 'mic_task') and self.mic_task:
+            self.mic_task.cancel()
+            self.mic_task = None
+
+        # Limpiar por completo la cola de reproducción
+        while not self.audio_queue.empty():
+            try:
+                self.audio_queue.get_nowait()
+            except queue.Empty:
+                break
+
     def stop_audio_output(self):
         """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
         self.audio_active = False
@@ -596,7 +622,16 @@ class WebSocketClient:
                 self.audio_queue.get_nowait()
             except queue.Empty:
                 break
-    async def start_audio_stream(self):
+
+        # Limpiar la nueva cola del altavoz junto con las otras
+        if hasattr(self, 'spk_history_queue'):
+            while not self.spk_history_queue.empty():
+                try:
+                    self.spk_history_queue.get_nowait()
+                except queue.Empty:
+                    break
+
+    async def start_audio_stream00(self):
         if self.audio_stream is not None:
             print("⚠️ Stream de audio ya está activo.")
             return
@@ -654,7 +689,7 @@ class WebSocketClient:
             print(f"[!] No se pudo iniciar el stream de audio: {e}")
             self.audio_active = False
             self.audio_stream = None
-    async def _mic_sender_worker(self):
+    async def _mic_sender_worker00(self):
         """Worker asíncrono encargado de procesar la captura del micrófono y enviarla por la red"""
         print("[Audio] Worker de envío de micrófono iniciado.")
         while self.audio_active and self.websocket:
@@ -666,6 +701,106 @@ class WebSocketClient:
                 encoded = base64.b64encode(indata.tobytes()).decode('utf-8')
                 msg = {
                     "type": self.msg_type_server[11], # client_audio_chunk
+                    "message": encoded
+                }
+                await self.websocket.send(json.dumps(msg))
+
+            except queue.Empty:
+                continue
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Error en worker de envío de audio: {e}")
+                break
+        print("[Audio] Worker de envío de micrófono detenido.")
+
+    async def start_audio_stream(self):
+        if self.audio_stream is not None:
+            print("⚠️ Stream de audio ya está activo.")
+            return
+
+        print("Iniciando audio stream full-duplex con AEC (SciPy/NumPy)...")
+        self.audio_active = True
+        loop = asyncio.get_running_loop()
+
+        # Colas optimizadas para tiempo real
+        self.audio_queue = queue.Queue(maxsize=3)
+        self.mic_capture_queue = queue.Queue(maxsize=5)
+        # NUEVO: Cola para pasar la referencia del altavoz al worker del micrófono
+        self.spk_history_queue = queue.Queue(maxsize=5)
+
+        # Instanciar nuestro cancelador puro de Python
+        self.echo_canceller = NLMS_EchoCanceller(frame_size=self.FRAME_SIZE, filter_length=self.FRAME_SIZE * 2)
+
+        def callback(indata, outdata, frames, time, status):
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            if status:
+                print("sounddevice status:", status)
+
+            # 1. Obtener audio del Servidor para el Altavoz
+            try:
+                spk_data = self.audio_queue.get_nowait()
+                outdata[:] = spk_data.reshape(-1, self.CHANNELS)
+            except queue.Empty:
+                spk_data = np.zeros((frames, self.CHANNELS), np.int16)
+                outdata[:] = spk_data
+
+            # 2. Guardar referencia del Altavoz y Captura del Micrófono en paralelo
+            try:
+                # Guardamos solo el canal 0 (Mono) para procesar
+                self.mic_capture_queue.put_nowait(indata[:, 0].copy())
+                self.spk_history_queue.put_nowait(outdata[:, 0].copy())
+            except queue.Full:
+                # Si se satura por lag de red, vaciamos el slot antiguo
+                try:
+                    _ = self.mic_capture_queue.get_nowait()
+                    _ = self.spk_history_queue.get_nowait()
+                    self.mic_capture_queue.put_nowait(indata[:, 0].copy())
+                    self.spk_history_queue.put_nowait(outdata[:, 0].copy())
+                except queue.Empty:
+                    pass
+
+        try:
+            self.audio_stream = sd.Stream(
+                samplerate=self.SAMPLE_RATE,
+                channels=self.CHANNELS,
+                blocksize=self.FRAME_SIZE,
+                dtype='int16',
+                callback=callback
+            )
+            self.audio_stream.start()
+            print("Stream full-duplex inicializado en hardware.")
+
+            self.mic_task = asyncio.create_task(self._mic_sender_worker())
+
+        except Exception as e:
+            print(f"[!] No se pudo iniciar el stream de audio: {e}")
+            self.audio_active = False
+            self.audio_stream = None
+    async def _mic_sender_worker(self):
+        """Worker asíncrono encargado de procesar la captura del micrófono, aplicar AEC y enviarla por la red"""
+        print("[Audio] Worker de envío de micrófono con AEC iniciado.")
+        while self.audio_active and self.websocket:
+            try:
+                # Extraemos de forma segura tanto la captura como la referencia en el hilo secundario
+                indata = await asyncio.to_thread(self.mic_capture_queue.get, timeout=0.1)
+
+                try:
+                    spkdata = self.spk_history_queue.get_nowait()
+                except queue.Empty:
+                    spkdata = np.zeros_like(indata)
+
+                # === APLICAR CANCELACIÓN DE ECO ===
+                # El filtro procesará el bloque nativamente con NumPy a la velocidad del procesador de la Pi 5
+                audio_limpio = self.echo_canceller.cancel(indata, spkdata)
+
+                # Codificación a base64 del audio ya filtrado y libre de eco
+                encoded = base64.b64encode(audio_limpio.tobytes()).decode('utf-8')
+                msg = {
+                    "type": self.msg_type_server[11],  # client_audio_chunk
                     "message": encoded
                 }
                 await self.websocket.send(json.dumps(msg))
@@ -916,6 +1051,40 @@ class WebSocketClient:
             self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
             await asyncio.sleep(0.3)
             sys.exit(0)
+
+
+class NLMS_EchoCanceller:
+    def __init__(self, frame_size, filter_length=1024, mu=0.15):
+        self.frame_size = frame_size
+        self.filter_length = filter_length
+        self.mu = mu  # Velocidad de adaptación. Valores entre 0.05 y 0.25 van ideal en la Pi
+        self.w = np.zeros(filter_length, dtype=np.float32)  # Coeficientes del filtro
+        self.x_buffer = np.zeros(filter_length, dtype=np.float32)  # Historial del altavoz
+
+    def cancel(self, mic_chunk, spk_chunk):
+        # Convertir a float32 plano en rango [-1.0, 1.0] para que las matemáticas sean estables
+        x = spk_chunk.astype(np.float32) / 32768.0
+        d = mic_chunk.astype(np.float32) / 32768.0
+
+        e = np.zeros_like(d)
+
+        # Procesar muestra por muestra el bloque actual
+        for i in range(len(d)):
+            self.x_buffer = np.roll(self.x_buffer, 1)
+            self.x_buffer[0] = x[i]
+
+            # Estimación del eco acumulado en la sala
+            y = np.dot(self.w, self.x_buffer)
+
+            # Restamos el eco estimado de la captura real del micrófono
+            e[i] = d[i] - y
+
+            # Algoritmo NLMS para actualizar pesos del filtro según el error
+            norm = np.dot(self.x_buffer, self.x_buffer) + 1e-4
+            self.w += (self.mu / norm) * e[i] * self.x_buffer
+
+        # Devolver el audio limpio escalado de nuevo a int16 para la red
+        return (e * 32768.0).astype(np.int16)
 
 if __name__ == "__main__":
     # Leer client_id del primer argumento
