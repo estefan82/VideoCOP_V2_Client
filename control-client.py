@@ -33,8 +33,6 @@ To do
 - send audio video device info
 - list-camera ready to save on .ini
 - cooldown para botton call! desde client
-to do 
-
 """
 
 class WebSocketClient:
