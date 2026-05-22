@@ -31,7 +31,8 @@ To do
 - version control
 - list audio video device
 - send audio video device info
-list-camera ready to save on .ini
+- list-camera ready to save on .ini
+- cooldown para botton call! desde client
 to do 
 
 """
@@ -571,7 +572,8 @@ class WebSocketClient:
 
         except Exception as e:
             print(f"[!] Error reproduciendo audio: {e}")
-    def stop_audio_output00(self):
+
+    def stop_audio_output(self):
         """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
         self.audio_active = False
 
@@ -596,8 +598,7 @@ class WebSocketClient:
                 self.audio_queue.get_nowait()
             except queue.Empty:
                 break
-
-    def stop_audio_output(self):
+    def stop_audio_output_AEC(self):
         """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
         self.audio_active = False
 
@@ -631,7 +632,7 @@ class WebSocketClient:
                 except queue.Empty:
                     break
 
-    async def start_audio_stream00(self):
+    async def start_audio_stream(self):
         if self.audio_stream is not None:
             print("⚠️ Stream de audio ya está activo.")
             return
@@ -689,7 +690,7 @@ class WebSocketClient:
             print(f"[!] No se pudo iniciar el stream de audio: {e}")
             self.audio_active = False
             self.audio_stream = None
-    async def _mic_sender_worker00(self):
+    async def _mic_sender_worker(self):
         """Worker asíncrono encargado de procesar la captura del micrófono y enviarla por la red"""
         print("[Audio] Worker de envío de micrófono iniciado.")
         while self.audio_active and self.websocket:
@@ -714,7 +715,7 @@ class WebSocketClient:
                 break
         print("[Audio] Worker de envío de micrófono detenido.")
 
-    async def start_audio_stream(self):
+    async def start_audio_stream_AEC(self):
         if self.audio_stream is not None:
             print("⚠️ Stream de audio ya está activo.")
             return
@@ -780,7 +781,7 @@ class WebSocketClient:
             print(f"[!] No se pudo iniciar el stream de audio: {e}")
             self.audio_active = False
             self.audio_stream = None
-    async def _mic_sender_worker(self):
+    async def _mic_sender_worker_AEC(self):
         """Worker asíncrono encargado de procesar la captura del micrófono, aplicar AEC y enviarla por la red"""
         print("[Audio] Worker de envío de micrófono con AEC iniciado.")
         while self.audio_active and self.websocket:
