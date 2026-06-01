@@ -28,9 +28,9 @@ __author__ = "Isaias Estefan Moro"
 1.6.1
 - audio queue add on control client
 
-1.6.2
+1.7.0
+- no more base64 audio chunk, no retrocompatibility
 
-1.5.6
-1.5.7
+1.7.1
 
 """
