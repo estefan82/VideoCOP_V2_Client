@@ -2,7 +2,7 @@
 # Script para iniciar VideoCOP con control_cliente.py y gui-control.py
 
 # Ir a la carpeta correcta
-cd /home/admin/videocop/ || { echo "No se encontró la carpeta /home/admin/VideoCOP/"; exit 1; }
+cd /home/admin/videocop/ || { echo "No se encontró la carpeta /home/admin/videocop/"; exit 1; }
 
 # ---- EJECUCIÓN FUERA DEL VENV ----
 # Ejecutar button-client.py (en segundo plano) usando el Python global del sistema
