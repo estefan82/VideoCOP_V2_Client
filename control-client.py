@@ -776,7 +776,7 @@ class WebSocketClient:
             self.audio_active = False
             self.audio_stream = None
 
-    async def start_audio_stream(self):
+    async def start_audio_stream_noAEC(self):
         if self.audio_stream is not None:
             print("⚠️ Stream de audio ya está activo.")
             return
@@ -832,6 +832,83 @@ class WebSocketClient:
             self.audio_active = False
             self.audio_stream = None
 
+    async def start_audio_stream(self):
+        if self.audio_stream is not None:
+            print("⚠️ Stream de audio ya está activo.")
+            return
+
+        print("Iniciando audio stream con Cancelación de Eco (NLMS)...")
+        self.audio_active = True
+        loop = asyncio.get_running_loop()
+
+        # --- Parámetros del Cancelador de Eco (NLMS) ---
+        M = 256  # Longitud del filtro (ajustar a 512 si hay mucha reverberación)
+        w = np.zeros(M, dtype=np.float32)
+        x_buffer = np.zeros(M + self.FRAME_SIZE, dtype=np.float32)
+        mu = 0.1  # Factor de aprendizaje
+        eps = 1e-3
+        # -----------------------------------------------
+
+        self.audio_queue = queue.Queue(maxsize=3)
+        self.mic_capture_queue = queue.Queue(maxsize=5)
+
+        def callback(indata, outdata, frames, time, status):
+            nonlocal w, x_buffer
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            # 1. SALIDA: Audio del Servidor -> Altavoz
+            try:
+                data = self.audio_queue.get_nowait()
+                outdata[:] = data.reshape(-1, self.CHANNELS)
+                playback_chunk = data.copy()
+            except queue.Empty:
+                playback_chunk = np.zeros((frames, self.CHANNELS), np.int16)
+                outdata[:] = playback_chunk
+
+            # 2. CANCELACIÓN DE ECO (Micrófono -> Limpieza -> Cola para enviar)
+            try:
+                # Convertir a float32 para el cálculo
+                mic_signal = indata.flatten().astype(np.float32)
+                ref_signal = playback_chunk.flatten().astype(np.float32)
+
+                # Actualizar buffer histórico
+                x_buffer[:M] = x_buffer[-M:]
+                x_buffer[M:] = ref_signal
+
+                clean_signal = np.zeros(frames, dtype=np.float32)
+
+                # Bucle NLMS
+                for i in range(frames):
+                    x_n = x_buffer[i + M: i: -1]
+                    y_n = np.dot(w, x_n)
+                    e_n = mic_signal[i] - y_n
+                    clean_signal[i] = e_n
+
+                    norm_x = np.dot(x_n, x_n) + eps
+                    w += (mu / norm_x) * e_n * x_n
+
+                # Devolver a int16 y guardar en cola de envío
+                clean_int16 = np.clip(clean_signal, -32768, 32767).astype(np.int16)
+                self.mic_capture_queue.put_nowait(clean_int16.tobytes())
+
+            except Exception as e:
+                pass  # Evitar prints en el callback para no generar lag
+
+        try:
+            self.audio_stream = sd.Stream(
+                samplerate=self.SAMPLE_RATE,
+                channels=self.CHANNELS,
+                blocksize=self.FRAME_SIZE,
+                dtype='int16',
+                callback=callback
+            )
+            self.audio_stream.start()
+            self.mic_task = asyncio.create_task(self._mic_sender_worker())
+        except Exception as e:
+            print(f"[!] Error hardware WM8960: {e}")
+            self.audio_active = False
 
     async def _mic_sender_worker_base64(self):
         """Worker asíncrono encargado de procesar la captura del micrófono y enviarla por la red"""
@@ -858,7 +935,7 @@ class WebSocketClient:
                 break
         print("[Audio] Worker de envío de micrófono detenido.")
 
-    async def _mic_sender_worker(self):
+    async def _mic_sender_workeraec(self):
         """Worker asíncrono encargado de procesar la captura del micrófono y enviarla en binario puro"""
         print("[Audio] Worker de envío de micrófono iniciado.")
         while self.audio_active and self.websocket:
@@ -878,6 +955,23 @@ class WebSocketClient:
                 print(f"Error en worker de envío de audio: {e}")
                 break
         print("[Audio] Worker de envío de micrófono detenido.")
+
+    async def _mic_sender_worker(self):
+        """Saca los bytes limpios de la cola y los envía al servidor."""
+        print("Worker de micrófono activo.")
+        while self.audio_active:
+            try:
+                # Obtenemos los bytes ya procesados por el NLMS
+                audio_bytes = await asyncio.to_thread(self.mic_capture_queue.get, timeout=1)
+
+                if self.websocket and self.audio_active:
+                    # Envío binario puro (sin JSON) para mínima latencia
+                    await self.websocket.send(audio_bytes)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f"Error en worker mic: {e}")
+                break
 
     # Video block
     async def video_sender(self, width=640, height=480, fps=20):
