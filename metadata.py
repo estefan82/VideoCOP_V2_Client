@@ -31,6 +31,7 @@ __author__ = "Isaias Estefan Moro"
 1.7.0
 - no more base64 audio chunk, no retrocompatibility
 
-1.7.1
+1.7.0
+AEC not good with numpy
 
 """
