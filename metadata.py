@@ -1,6 +1,6 @@
 # metadata.py
 __name__ = "VideoCOP Control Client"
-__version__ = "1.6.2"
+__version__ = "1.7.0"
 __author__ = "Isaias Estefan Moro"
 
 """
