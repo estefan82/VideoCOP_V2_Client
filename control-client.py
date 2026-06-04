@@ -114,6 +114,8 @@ class WebSocketClient:
         self.audio_queue = queue.Queue(maxsize=20) # Cola para audio entrante (bytes -> numpy int16 arrays)
         self.audio_stream = None # guard para el stream
         self.audio_active = False # Control del estado de audio full duplex
+        self.audio_initializing = False
+
 
         #video flags
         self.video_active = False
@@ -151,94 +153,6 @@ class WebSocketClient:
         }
 
         self.clean_output_json()
-
-    async def listen_messages_base64(self):
-        try:
-            async for message in self.websocket:
-                data = json.loads(message)
-                if data.get("type") == "pong":
-                    print(f"<<< Heartbeat OK ({data['time']})")
-
-                elif data.get("type") == "server_message":
-                    self.output_json(server_message=data['text'])
-                    print(f"<<< server_message: {data['text']}")
-
-                elif data.get("type") == "audio_start":
-                    print("Orden recibida: iniciar transmisión de audio")
-                    await self.start_audio_stream()
-                    self.output_json(audio_stream=True)
-                    #asyncio.create_task(self.start_audio_stream())
-                    continue
-
-                elif data.get("type") == "server_audio_chunk":
-                    base64_chunk = data.get("message", "")
-                    #  print(f"Audio chunk recibido ({len(base64_chunk)} bytes)")
-                    self.play_audio_chunk(base64_chunk)
-                    continue
-
-                elif data.get("type") == "audio_stop00":
-                    print("Orden recibida: detener transmisión de audio")
-                    self.output_json(audio_stream=False)
-                    self.audio_active = False  # Detiene callback inmediatamente
-                    if self.audio_stream:
-                        try:
-                            self.audio_stream.stop()
-                            self.audio_stream.close()
-                            print("Stream detenido correctamente")
-                        except Exception as e:
-                            print(f"[!] Error deteniendo stream: {e}")
-                        finally:
-                            self.audio_stream = None
-                    # Limpiar la cola por seguridad
-                    while not self.audio_queue.empty():
-                        try:
-                            self.audio_queue.get_nowait()
-                        except queue.Empty:
-                            break
-
-                elif data.get("type") == "audio_stop":
-                    print("Orden recibida: detener transmisión de audio")
-                    self.output_json(audio_stream=False)
-                    self.stop_audio_output()  # Usamos la función optimizada directa
-                    continue
-
-                elif data.get("type") == "video_start":
-                    print("Orden recibida: iniciar transmisión de video")
-                    self.output_json(video_stream=True)
-                    await self.start_video()
-                    continue
-
-                elif data.get("type") == "snapshot_request":
-                    print("Orden recibida: enviar snapshot")
-                    await self.send_snapshot(width=self.video_width, height=self.video_height)
-                    continue
-
-                elif data.get("type") == "video_stop":
-                    print("Orden recibida: detener transmisión de video")
-                    self.output_json(video_stream=False)
-                    await self.stop_video()
-                    continue
-
-                elif data.get("type") == "id_request":
-                    print ("ID request from server")
-                    await self.send_json("id_request", self.client_id)
-
-                elif data.get("type") == self.msg_type_server[7]:
-                    print(f"Echo from server [text]: {data['text']}")
-
-                elif data.get("type") == self.msg_type_server[8]:
-                    print ("Only text mode On")
-                    self.output_json(only_text=True)
-
-                elif data.get("type") == self.msg_type_server[9]:
-                    print ("Only text mode Off")
-                    self.output_json(only_text=False)
-
-                else:
-                    print(f"data {data}")
-
-        except Exception as e:
-            print(f"[!] Error escuchando mensajes: {e}")
 
     async def listen_messages(self):
         try:
@@ -551,122 +465,11 @@ class WebSocketClient:
                 sys.exit(0)
 
     # Audio block
-    def play_audio_chunk00(self, base64_data):
-        """Recibe un chunk base64, decodifica y lo agrega a la cola."""
-        try:
-            audio_bytes = base64.b64decode(base64_data)
-            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-            # Iniciar el stream de salida en el bucle asyncio si aún no existe
-            loop = asyncio.get_running_loop()
-            if self.audio_stream is None:
-                asyncio.run_coroutine_threadsafe(self.start_audio_stream(), loop)
-            self.audio_queue.put(audio_array)
-        except Exception as e:
-            print(f"[!] Error reproduciendo audio: {e}")
-    def stop_audio_output00(self):
-        """Detiene el stream de salida y limpia la cola de audio."""
-        if self.audio_stream is not None:
-            try:
-
-                self.audio_stream.stop()
-                self.audio_stream.close()
-                print("Stream de salida detenido")
-            except Exception as e:
-                print(f"Error cerrando stream de audio: {e}")
-            finally:
-                self.audio_stream = None
-
-        # Limpiar la cola de audio
-        while not self.audio_queue.empty():
-            try:
-                self.audio_queue.get_nowait()
-            except queue.Empty:
-                break
-    async def start_audio_stream00(self):
-        if self.audio_active:
-            print("Stream de audio ya activo.")
-            return
-
-        print("Iniciando audio stream...")
-        loop = asyncio.get_running_loop()
-        self.audio_active = True
-
-        if self.audio_stream is None:
-            def callback(indata, outdata, frames, time, status):
-                if not self.audio_active:
-                    outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
-                    return  # Si se detuvo, no seguir procesando
-
-                try:
-                    if status:
-                        print("Status", status)
-                    # Captura micrófono → envía al servidor
-                    # Codificar el chunk en base64
-                    encoded = base64.b64encode(indata.tobytes()).decode('utf-8')
-                    msg = {
-                        "type": self.msg_type_server[11],
-                        "message": encoded
-                    }
-                    asyncio.run_coroutine_threadsafe(
-                        self.websocket.send(json.dumps(msg)),
-                        loop
-                    )
-                    # Reproduce desde la cola (audio recibido del servidor)
-                    try:
-                        data = self.audio_queue.get_nowait()
-                        outdata[:] = data.reshape(-1, self.CHANNELS)
-                    except queue.Empty:
-                        outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
-
-                except Exception as e:
-                    print(f"Error en callback: {e}")
-
-            # Crear stream
-            self.audio_stream = sd.Stream(
-                samplerate=self.SAMPLE_RATE,
-                channels=self.CHANNELS,
-                blocksize=self.FRAME_SIZE,
-                dtype='int16',
-                callback=callback
-            )
-
-            # Iniciar stream
-            self.audio_stream.start()
-            print("Transmitiendo y recibiendo audio...")
-
-        else:
-            print("⚠️ Stream ya está activo.")
 
     # =========================================================================
     # Audio block (Optimizado para Baja Latencia y No Bloqueante)
     # =========================================================================
-    def play_audio_chunk_base64(self, base64_data):
-        """Recibe un chunk base64, decodifica y lo agrega a la cola de salida sin bloquear."""
-        try:
-            audio_bytes = base64.b64decode(base64_data)
-            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-            if audio_array.size == 0:
-                return
-
-            if self.audio_stream is None and self.audio_active:
-                # Si por alguna razón el stream cayó pero seguimos activos, intentamos relanzar
-                loop = asyncio.get_running_loop()
-                asyncio.run_coroutine_threadsafe(self.start_audio_stream(), loop)
-
-            try:
-                # Forzamos maxsize corto (ej. 3 o 4). Si está llena, descartamos el frame viejo
-                self.audio_queue.put_nowait(audio_array)
-            except queue.Full:
-                try:
-                    _ = self.audio_queue.get_nowait()  # Descartar el más viejo desfasado
-                    self.audio_queue.put_nowait(audio_array)
-                except queue.Empty:
-                    pass
-
-        except Exception as e:
-            print(f"[!] Error reproduciendo audio: {e}")
-
-    def play_audio_chunk(self, audio_bytes):
+    def play_audio_chunk_no_aec(self, audio_bytes):
         """Recibe un chunk de bytes puros, lo transforma y lo agrega a la cola de salida."""
         try:
             # Se elimina: audio_bytes = base64.b64decode(base64_data)
@@ -690,8 +493,63 @@ class WebSocketClient:
         except Exception as e:
             print(f"[!] Error reproduciendo audio: {e}")
 
+    def play_audio_chunk_aec1(self, audio_bytes):
+        """Recibe un chunk de bytes puros, lo transforma y lo agrega a la cola de salida."""
+        try:
+            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+            if audio_array.size == 0:
+                return
 
-    def stop_audio_output(self):
+            # MODIFICADO: Solo intentamos arrancar si no está ya inicializándose
+            if self.audio_stream is None and self.audio_active and not self.audio_initializing:
+                loop = asyncio.get_running_loop()
+                asyncio.run_coroutine_threadsafe(self.start_audio_stream(), loop)
+
+            try:
+                self.audio_queue.put_nowait(audio_array)
+            except queue.Full:
+                try:
+                    _ = self.audio_queue.get_nowait()
+                    self.audio_queue.put_nowait(audio_array)
+                except queue.Empty:
+                    pass
+
+        except Exception as e:
+            print(f"[!] Error reproduciendo audio: {e}")
+
+    def play_audio_chunk(self, audio_bytes):
+        """Recibe un chunk de bytes puros, lo transforma y lo agrega a la cola de salida."""
+        try:
+            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+            if audio_array.size == 0:
+                return
+
+            if self.audio_stream is None and self.audio_active and not self.audio_initializing:
+                loop = asyncio.get_running_loop()
+                asyncio.run_coroutine_threadsafe(self.start_audio_stream(), loop)
+
+            # CONTROL AGRESIVO DE LATENCIA:
+            # Si la cola tiene más de 2 elementos, vaciamos el exceso inmediatamente
+            # para forzar que el audio que suena sea siempre el más fresco enviado por el servidor.
+            while self.audio_queue.qsize() >= 2:
+                try:
+                    self.audio_queue.get_nowait()
+                except queue.Empty:
+                    break
+
+            try:
+                self.audio_queue.put_nowait(audio_array)
+            except queue.Full:
+                try:
+                    _ = self.audio_queue.get_nowait()
+                    self.audio_queue.put_nowait(audio_array)
+                except queue.Empty:
+                    pass
+
+        except Exception as e:
+            print(f"[!] Error reproduciendo audio: {e}")
+
+    def stop_audio_output_no_aec(self):
         """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
         self.audio_active = False
 
@@ -717,66 +575,34 @@ class WebSocketClient:
             except queue.Empty:
                 break
 
-    async def start_audio_stream_base64(self):
+    def stop_audio_output(self):
+        """Detiene el stream de salida, el worker del micrófono y limpia la cola."""
+        self.audio_active = False
+
         if self.audio_stream is not None:
-            print("⚠️ Stream de audio ya está activo.")
-            return
-
-        print("Iniciando audio stream full-duplex...")
-        self.audio_active = True
-        loop = asyncio.get_running_loop()
-
-        # Ajustamos el tamaño máximo a 3 dinámicamente para garantizar tiempo real estricto
-        self.audio_queue = queue.Queue(maxsize=3)
-        # Inicializamos una cola exclusiva para la captura del micrófono
-        self.mic_capture_queue = queue.Queue(maxsize=5)
-
-        def callback(indata, outdata, frames, time, status):
-            if not self.audio_active:
-                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
-                return
-
-            if status:
-                print("sounddevice status:", status)
-
-            # 1. ENTRADA (Micrófono local -> Guardar en cola síncrona de forma inmediata)
             try:
-                self.mic_capture_queue.put_nowait(indata.copy())
-            except queue.Full:
-                try:
-                    _ = self.mic_capture_queue.get_nowait()
-                    self.mic_capture_queue.put_nowait(indata.copy())
-                except queue.Empty:
-                    pass
+                self.audio_stream.stop()
+                self.audio_stream.close()
+                print("Stream de audio duplex detenido correctamente.")
+            except Exception as e:
+                print(f"Error cerrando stream de audio: {e}")
+            finally:
+                self.audio_stream = None
+                self.echo_canceller = None
 
-            # 2. SALIDA (Audio del Servidor -> Altavoz local)
+        # Cancelar la tarea encargada de procesar el micrófono
+        if hasattr(self, 'mic_task') and self.mic_task:
+            self.mic_task.cancel()
+            self.mic_task = None
+
+        # Limpiar por completo la cola de reproducción
+        while not self.audio_queue.empty():
             try:
-                data = self.audio_queue.get_nowait()
-                outdata[:] = data.reshape(-1, self.CHANNELS)
+                self.audio_queue.get_nowait()
             except queue.Empty:
-                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                break
 
-        try:
-            # Crear e iniciar el stream nativo de sounddevice
-            self.audio_stream = sd.Stream(
-                samplerate=self.SAMPLE_RATE,
-                channels=self.CHANNELS,
-                blocksize=self.FRAME_SIZE,
-                dtype='int16',
-                callback=callback
-            )
-            self.audio_stream.start()
-            print("Stream full-duplex inicializado en hardware.")
-
-            # Lanzamos el bucle asíncrono nativo para vaciar el micrófono sin pisar el callback
-            self.mic_task = asyncio.create_task(self._mic_sender_worker())
-
-        except Exception as e:
-            print(f"[!] No se pudo iniciar el stream de audio: {e}")
-            self.audio_active = False
-            self.audio_stream = None
-
-    async def start_audio_stream(self):
+    async def start_audio_stream_no_aec(self):
         if self.audio_stream is not None:
             print("⚠️ Stream de audio ya está activo.")
             return
@@ -832,31 +658,205 @@ class WebSocketClient:
             self.audio_active = False
             self.audio_stream = None
 
+    async def start_audio_stream_aec1(self):
+        # Evitar colisiones si ya está activo o en proceso de apertura
+        if self.audio_stream is not None or self.audio_initializing:
+            print("⚠️ El stream de audio ya está activo o inicializándose.")
+            return
 
-    async def _mic_sender_worker_base64(self):
-        """Worker asíncrono encargado de procesar la captura del micrófono y enviarla por la red"""
-        print("[Audio] Worker de envío de micrófono iniciado.")
-        while self.audio_active and self.websocket:
+        print("Iniciando audio stream full-duplex con cancelación de eco...")
+        self.audio_initializing = True
+        self.audio_active = True
+
+        # Reiniciar las colas para un flujo limpio
+        self.audio_queue = queue.Queue(maxsize=3)
+        self.mic_capture_queue = queue.Queue(maxsize=5)
+
+        # --- Inicializar SpeexDSP Echo Canceller ---
+        # 2048 de longitud de filtro es ideal para la reverberación de una sala pequeña
+        try:
+            from speexdsp import EchoCanceller
+            echo_filter_length = 2048
+            self.echo_canceller = EchoCanceller.create(self.FRAME_SIZE, echo_filter_length, self.SAMPLE_RATE)
+            print("[SpeexDSP] Cancelador de eco inicializado correctamente.")
+        except Exception as e:
+            print(f"[!] Error cargando SpeexDSP (¿está bien instalado?): {e}")
+            self.audio_active = False
+            self.audio_initializing = False
+            return
+
+        def callback(indata, outdata, frames, time, status):
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            if status:
+                print("sounddevice status:", status)
+
+            # 1. SALIDA: Obtener audio del Servidor hacia los altavoces
             try:
-                # Extraemos del buffer síncrono delegando en un hilo secundario para evitar bloquear asyncio
-                indata = await asyncio.to_thread(self.mic_capture_queue.get, timeout=0.1)
-
-                # Codificación a base64 y empaquetado JSON de forma asíncrona limpia
-                encoded = base64.b64encode(indata.tobytes()).decode('utf-8')
-                msg = {
-                    "type": self.msg_type_server[11], # client_audio_chunk
-                    "message": encoded
-                }
-                await self.websocket.send(json.dumps(msg))
-
+                server_data = self.audio_queue.get_nowait()
+                outdata[:] = server_data.reshape(-1, self.CHANNELS)
             except queue.Empty:
-                continue
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                print(f"Error en worker de envío de audio: {e}")
-                break
-        print("[Audio] Worker de envío de micrófono detenido.")
+                # Si no hay datos del servidor, rellenamos con silencio
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+
+            # 2. ENTRADA: Procesar Micrófono + Cancelación de Eco
+            try:
+                # Convertimos arrays de numpy a bytes puros para el filtro C++ de Speex
+                mic_bytes = indata.tobytes()
+                speaker_bytes = outdata.tobytes()
+
+                # El método .process(mic, altavoz) resta el eco en tiempo real
+                clean_audio_bytes = self.echo_canceller.process(mic_bytes, speaker_bytes)
+
+                # Reconvertimos los bytes limpios a array numpy int16 para la cola de envío
+                clean_indata = np.frombuffer(clean_audio_bytes, dtype=np.int16).reshape(-1, self.CHANNELS)
+
+                self.mic_capture_queue.put_nowait(clean_indata.copy())
+            except queue.Full:
+                try:
+                    # Si la cola de red se satura, descartamos el frame más viejo
+                    _ = self.mic_capture_queue.get_nowait()
+                    self.mic_capture_queue.put_nowait(clean_indata.copy())
+                except queue.Empty:
+                    pass
+            except Exception as callback_err:
+                # Evitamos que un error dentro del callback cuelgue el backend de audio
+                print(f"Error en callback de audio: {callback_err}")
+
+        try:
+            # Inicialización del dispositivo de hardware con sounddevice
+            self.audio_stream = sd.Stream(
+                samplerate=self.SAMPLE_RATE,
+                channels=self.CHANNELS,
+                blocksize=self.FRAME_SIZE,
+                dtype='int16',
+                callback=callback
+            )
+            self.audio_stream.start()
+            print("Stream full-duplex inicializado en hardware.")
+
+            # Lanzar el worker asíncrono que envía el audio limpio por el websocket
+            self.mic_task = asyncio.create_task(self._mic_sender_worker())
+
+        except Exception as e:
+            print(f"[!] No se pudo iniciar el stream de audio en el hardware: {e}")
+            self.audio_active = False
+            self.audio_stream = None
+            self.echo_canceller = None
+        finally:
+            # Pase lo que pase, liberamos el candado de inicialización
+            self.audio_initializing = False
+
+    async def start_audio_stream(self):
+        # Evitar colisiones si ya está activo o en proceso de apertura
+        if self.audio_stream is not None or self.audio_initializing:
+            print("⚠️ El stream de audio ya está activo o inicializándose.")
+            return
+
+        print("Iniciando audio stream full-duplex con cancelación de eco...")
+        self.audio_initializing = True
+        self.audio_active = True
+
+        # Reiniciar las colas para un flujo limpio
+        self.audio_queue = queue.Queue(maxsize=3)
+        self.mic_capture_queue = queue.Queue(maxsize=5)
+
+        # --- [NUEVO] Histórico para alinear el Eco en el Tiempo ---
+        # Guarda los bloques que salen por el altavoz para sincronizarlos con el micrófono
+        self.speaker_history = []
+
+        # AJUSTE DE LATENCIA: 3 bloques equivale a unos ~48ms de retraso de hardware a 16kHz
+        # Si notas que aún queda eco, prueba a cambiar este valor a 2 o a 4.
+        BLOCK_DELAY = 0
+
+        # --- Inicializar SpeexDSP Echo Canceller ---
+        try:
+            from speexdsp import EchoCanceller
+            echo_filter_length = 4096
+            self.echo_canceller = EchoCanceller.create(self.FRAME_SIZE, echo_filter_length, self.SAMPLE_RATE)
+            print("[SpeexDSP] Cancelador de eco inicializado correctamente.")
+        except Exception as e:
+            print(f"[!] Error cargando SpeexDSP: {e}")
+            self.audio_active = False
+            self.audio_initializing = False
+            return
+
+        def callback(indata, outdata, frames, time, status):
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            if status:
+                print("sounddevice status:", status)
+
+            # 1. SALIDA: Obtener audio del Servidor hacia los altavoces
+            try:
+                server_data = self.audio_queue.get_nowait()
+                outdata[:] = server_data.reshape(-1, self.CHANNELS)
+            except queue.Empty:
+                # Si no hay datos del servidor, reproducimos silencio
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+
+            # 2. ENTRADA: Sincronizar Referencia y Cancelar Eco en tiempo real
+            try:
+                # Convertimos los arrays de entrada y salida actuales a bytes crudos para C++
+                mic_bytes = indata.tobytes()
+                speaker_bytes = outdata.tobytes()
+
+                # Añadimos lo que acaba de salir por el altavoz a nuestra línea de retraso
+                self.speaker_history.append(speaker_bytes)
+
+                # Si no hemos acumulado el retraso mínimo del hardware, usamos silencio como referencia
+                if len(self.speaker_history) < BLOCK_DELAY:
+                    reference_bytes = bytes(len(speaker_bytes))
+                else:
+                    # Extraemos el bloque antiguo (el que físicamente está sonando en el aire AHORA mismo)
+                    reference_bytes = self.speaker_history.pop(0)
+
+                # Pasamos el micrófono actual comparándolo con la referencia temporalmente alineada
+                clean_audio_bytes = self.echo_canceller.process(mic_bytes, reference_bytes)
+
+                # Reconvertimos los bytes limpios a array numpy int16 para el worker de transmisión
+                clean_indata = np.frombuffer(clean_audio_bytes, dtype=np.int16).reshape(-1, self.CHANNELS)
+
+                self.mic_capture_queue.put_nowait(clean_indata.copy())
+
+            except queue.Full:
+                try:
+                    # Si la cola hacia la red se satura, descartamos el frame más antiguo
+                    _ = self.mic_capture_queue.get_nowait()
+                    self.mic_capture_queue.put_nowait(clean_indata.copy())
+                except queue.Empty:
+                    pass
+            except Exception as callback_err:
+                print(f"Error en callback de audio: {callback_err}")
+
+        try:
+            # Inicialización del dispositivo de hardware con sounddevice
+            self.audio_stream = sd.Stream(
+                samplerate=self.SAMPLE_RATE,
+                channels=self.CHANNELS,
+                blocksize=self.FRAME_SIZE,
+                dtype='int16',
+                latency='low',
+                callback=callback
+            )
+            self.audio_stream.start()
+            print("Stream full-duplex inicializado en hardware.")
+
+            # Lanzar el worker asíncrono que envía el audio limpio por el websocket
+            self.mic_task = asyncio.create_task(self._mic_sender_worker())
+
+        except Exception as e:
+            print(f"[!] No se pudo iniciar el stream de audio en el hardware: {e}")
+            self.audio_active = False
+            self.audio_stream = None
+            self.echo_canceller = None
+        finally:
+            # Liberamos el candado de inicialización para permitir futuros rearranques
+            self.audio_initializing = False
 
     async def _mic_sender_worker(self):
         """Worker asíncrono encargado de procesar la captura del micrófono y enviarla en binario puro"""
