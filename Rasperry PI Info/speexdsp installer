@@ -1,0 +1,28 @@
+# 1. Instalar las dependencias del sistema (Compilador y librerías C)
+sudo apt update
+sudo apt install -y swig libspeexdsp-dev build-essential python3-dev
+
+# 2. Clonar el repositorio con el código del wrapper
+git clone https://github.com/xiongyihui/speexdsp-python.git
+cd speexdsp-python
+
+# 3. Crear entorno virtual o usar existente
+python3 -m venv venv
+
+# 4. Activar tu entorno virtual del proyecto VideoCOP
+source venv/bin/activate
+
+# 5. Asegurar las herramientas de compilación de Python en el venv
+pip install --upgrade pip setuptools wheel
+
+# 6. Compilar e instalar el módulo usando SWIG
+python setup.py install
+
+# 7. Ejecuta este comando para copiar el archivo perdido a su sitio dentro de este nuevo venv:
+cp src/speexdsp.py ~/speexdsp_test/speexdsp-python/venv/lib/python3.13/site-packages/speexdsp/
+
+este es automatico
+cp ~/speexdsp_test/speexdsp-python/src/speexdsp.py $(python3 -c "import site; print(site.getsitepackages()[0])")/speexdsp/
+
+# 8. Test script
+python3 -c "from speexdsp import EchoCanceller; print('speexdsp se instaló correctamente')"
