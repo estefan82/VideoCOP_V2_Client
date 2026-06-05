@@ -2,18 +2,19 @@
 sudo apt update
 sudo apt install -y swig libspeexdsp-dev build-essential python3-dev
 
-# 2. Clonar el repositorio con el código del wrapper
-git clone https://github.com/xiongyihui/speexdsp-python.git
-cd speexdsp-python
 
-# 3. Crear entorno virtual o usar existente
+# 2. Crear entorno virtual o usar existente
 python3 -m venv venv
 
-# 4. Activar tu entorno virtual del proyecto VideoCOP
+# 3. Activar tu entorno virtual del proyecto VideoCOP
 source venv/bin/activate
 
-# 5. Asegurar las herramientas de compilación de Python en el venv
+# 4. Asegurar las herramientas de compilación de Python en el venv
 pip install --upgrade pip setuptools wheel
+
+# 5. Clonar el repositorio con el código del wrapper
+git clone https://github.com/xiongyihui/speexdsp-python.git
+cd speexdsp-python
 
 # 6. Compilar e instalar el módulo usando SWIG
 python setup.py install
