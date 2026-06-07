@@ -5,4 +5,5 @@ Exec=lxterminal -e /home/videocop/PI/videocop.sh
 Icon=utilities-terminal
 Comment=Ejecuta el monitor VideoCop
 Terminal=True
-Name[en_GB]=VideoCopexeloop
+Name[en_GB]=VideoCop
+Icon=audio-volume-high
