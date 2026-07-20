@@ -878,6 +878,7 @@ class WebSocketClient:
             await self.websocket.send(json_message)
 
             print("--- Configuración enviada con éxito ---")
+            print(datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S"))
             print(ini_content)  # Esto te permite ver exactamente qué enviaste
             print("---------------------------------------")
 
