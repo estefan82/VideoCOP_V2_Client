@@ -30,6 +30,7 @@ To do
 
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
+        self.mic_capture_queue = None
         print(f">>> Starting {metadata.__name__} v: {metadata.__version__} <<<")
         # configparser
         # --- Detectar ruta base correctamente ---
