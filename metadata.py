@@ -1,6 +1,6 @@
 # metadata.py
 __name__ = "VideoCOP Control Client"
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 __author__ = "Isaias Estefan Moro"
 
 """
@@ -32,6 +32,10 @@ __author__ = "Isaias Estefan Moro"
 - no more base64 audio chunk, no retrocompatibility
 
 1.7.0
-AEC not good with numpy
+- AEC not good with numpy
+
+1.7.1
+- Etiqueta Superior
+- Etiqueta inferior Derecha e Izquierda
 
 """

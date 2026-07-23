@@ -6,6 +6,7 @@ import time
 
 import customtkinter as ctk
 import configparser
+import metadata as metadata
 
 class VideoCopUI(ctk.CTk):
     def __init__(self):
@@ -99,8 +100,25 @@ class VideoCopUI(ctk.CTk):
         #self.call_count = 3  # cuenta regresiva inicial
 
         # --- Etiquetas principales ---
+        self.main_label = ctk.CTkLabel(
+            self,
+            text="SEES",
+            font=ctk.CTkFont(family="Arial", size=56, weight="bold", slant="italic"),
+            text_color=("#3a7ebf", "#1f538d")
+        )
+        # Reducimos el margen inferior a 2 px
+        self.main_label.pack(pady=(20, 2))
+
         self.id_label = ctk.CTkLabel(self, text="ID: ---", font=("Arial", 28, "bold"))
-        self.id_label.pack(pady=(40, 20))
+        # Reducimos el margen superior a 2 px
+        self.id_label.pack(pady=(2, 20))
+
+        """
+        Si los quieres aún más pegados: Cambia ambos a 0, quedando pady=(20, 0) y pady=(0, 20).
+
+        Si los quieres un poco más separados: Ajusta los valores intermedios (por ejemplo, 5 y 5 para lograr 10 px de separación).
+        """
+
 
         self.message_label = ctk.CTkLabel(
             self,
@@ -143,6 +161,22 @@ class VideoCopUI(ctk.CTk):
 
         self.update_json_loop()
         self.bind("<Escape>", lambda e: self.destroy())
+
+        # Etiqueta en el extremo inferior IZQUIERDO
+        self.left_footer = ctk.CTkLabel(
+            self,
+            text=f"V: {metadata.__version__}",  # Cambia según tu necesidad
+            font=("Arial", 14)
+        )
+        self.left_footer.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
+
+        # Etiqueta en el extremo inferior DERECHO
+        self.right_footer = ctk.CTkLabel(
+            self,
+            text="Powered by Logic Automation",  # Cambia según tu necesidad
+            font=("Arial", 14)
+        )
+        self.right_footer.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
     def refresh(self):
         self.btn_call.pack_forget()
