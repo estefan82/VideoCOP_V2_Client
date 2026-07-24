@@ -1,6 +1,6 @@
 # metadata.py
 __name__ = "VideoCOP Control Client"
-__version__ = "1.7.1"
+__version__ = "1.7.2"
 __author__ = "Isaias Estefan Moro"
 
 """
@@ -37,5 +37,8 @@ __author__ = "Isaias Estefan Moro"
 1.7.1
 - Etiqueta Superior
 - Etiqueta inferior Derecha e Izquierda
+
+1.7.2
+- ID input on first ON
 
 """

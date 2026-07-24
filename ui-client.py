@@ -13,6 +13,7 @@ class VideoCopUI(ctk.CTk):
         super().__init__()
         #configparser
         # --- Detectar ruta base correctamente ---
+        self.new_id_client = None
         if getattr(sys, 'frozen', False):
             # Si está ejecutándose como ejecutable PyInstaller
             self.base_path = os.path.dirname(sys.executable)
@@ -24,25 +25,11 @@ class VideoCopUI(ctk.CTk):
         self.config_path = os.path.join(self.base_path, "ui-client.ini")
         self.output_path = os.path.join(self.base_path, "output.json")
         self.input_path = os.path.join(self.base_path, "input.json")
+        self.control_client_config_path = os.path.join(self.base_path, "control-client.ini")
 
         # --- Leer configuración ---
         self.config = configparser.ConfigParser()
         self.config.read(self.config_path)
-
-        """# Ruta base del script
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Archivos en la misma carpeta
-        config_path = os.path.join(self.base_dir, "gui-cliente.ini")
-        self.output_path = os.path.join(self.base_dir, "output.json")
-        self.input_path = os.path.join(self.base_dir, "input.json")
-
-        # Leer configuración
-        self.config = configparser.ConfigParser()
-        self.config.read(config_path)"""
-
-        #self.config = configparser.ConfigParser()
-        #self.config.read("gui-cliente.ini")
 
         self.window_title = self.config["appearance"]["window_title"]
         self.theme = self.config["appearance"]["theme"]
@@ -99,6 +86,13 @@ class VideoCopUI(ctk.CTk):
         self.call_timer = None
         #self.call_count = 3  # cuenta regresiva inicial
 
+        # --- Leer ID de cliente ---
+        self.control_client_config = configparser.ConfigParser()
+        self.control_client_config.read(self.control_client_config_path)
+
+        self.id_from_ini = self.control_client_config.get("client", "id", fallback="").strip()
+        print(f"ID from control-client.ini: '{self.id_from_ini}'")
+
         # --- Etiquetas principales ---
         self.main_label = ctk.CTkLabel(
             self,
@@ -115,10 +109,8 @@ class VideoCopUI(ctk.CTk):
 
         """
         Si los quieres aún más pegados: Cambia ambos a 0, quedando pady=(20, 0) y pady=(0, 20).
-
         Si los quieres un poco más separados: Ajusta los valores intermedios (por ejemplo, 5 y 5 para lograr 10 px de separación).
         """
-
 
         self.message_label = ctk.CTkLabel(
             self,
@@ -178,6 +170,11 @@ class VideoCopUI(ctk.CTk):
         )
         self.right_footer.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
+        # --- VERIFICACIÓN Y APERTURA DE DIÁLOGO ---
+        if not self.id_from_ini:
+            # Usar after para asegurar que la ventana principal esté completamente renderizada antes de mostrar el modal
+            self.after(200, self.check_and_prompt_id)
+
     def refresh(self):
         self.btn_call.pack_forget()
         #self.id_label.configure(text="Starting ui client ...")
@@ -189,6 +186,17 @@ class VideoCopUI(ctk.CTk):
         self.btn_no.pack_forget()
         time.sleep(0.1)
         self.btn_call.pack(side="left", padx=30)
+
+    def check_and_prompt_id(self):
+        """Abre la ventana emergente si no hay un ID válido."""
+        dialog = ClientIDDialog(self, self.control_client_config_path)
+        self.wait_window(dialog)
+
+        if dialog.new_id_client:
+            self.new_id_client = dialog.new_id_client
+            self.id_from_ini = dialog.new_id_client
+            #self.id_label.configure(text=f"ID: {self.new_id_client}")
+            print(f"Nuevo ID asignado y guardado: {self.new_id_client}")
 
     # -------------------- COUNTDOWN fo call --------------------
     def start_call_countdown(self, event=None):
@@ -291,6 +299,72 @@ class VideoCopUI(ctk.CTk):
             print(f"[✓] input.json updated in {self.input_path}")
         except Exception as e:
             print(f"[!] Error updating input.json: {e}")
+
+
+# --- VENTANA MODAL PARA SOLICITAR ID CLIENTE ---
+class ClientIDDialog(ctk.CTkToplevel):
+    def __init__(self, parent, ini_path):
+        super().__init__(parent)
+        self.ini_path = ini_path
+        self.new_id_client = None
+
+        self.title("Configuración Inicial")
+        self.geometry("380x220")
+        self.resizable(False, False)
+
+        # Modalidad: Congela la ventana principal e impide interacción
+        self.transient(parent)
+        self.grab_set()
+
+        # UI Layout
+        self.label = ctk.CTkLabel(
+            self,
+            text="ID de Cliente no configurado.\nIngrese el nuevo ID:",
+            font=ctk.CTkFont(family="Arial", size=16, weight="bold")
+        )
+        self.label.pack(padx=20, pady=(20, 10))
+
+        self.entry = ctk.CTkEntry(
+            self,
+            placeholder_text="Ej: CAB-01",
+            width=260,
+            height=35,
+            font=("Arial", 14)
+        )
+        self.entry.pack(padx=20, pady=10)
+        self.entry.focus()
+        self.entry.bind("<Return>", lambda e: self._save_and_close())
+
+        self.btn_save = ctk.CTkButton(
+            self,
+            text="Guardar ID",
+            width=140,
+            height=35,
+            font=("Arial", 14, "bold"),
+            command=self._save_and_close
+        )
+        self.btn_save.pack(padx=20, pady=(10, 20))
+
+    def _save_and_close(self):
+        val = self.entry.get().strip()
+        if val:
+            self.new_id_client = val
+            self._write_to_ini(val)
+            self.destroy()
+
+    def _write_to_ini(self, client_id):
+        """Guarda la clave 'id' en el archivo INI especificado"""
+        config = configparser.ConfigParser()
+        if os.path.exists(self.ini_path):
+            config.read(self.ini_path)
+
+        if "client" not in config:
+            config["client"] = {}
+
+        config["client"]["id"] = client_id
+
+        with open(self.ini_path, "w", encoding="utf-8") as f:
+            config.write(f)
 
 if __name__ == "__main__":
     app = VideoCopUI()
