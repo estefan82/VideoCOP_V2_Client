@@ -160,7 +160,7 @@ class VideoCopUI(ctk.CTk):
             text=f"V: {metadata.__version__}",  # Cambia según tu necesidad
             font=("Arial", 14)
         )
-        self.left_footer.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
+        #self.left_footer.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
 
         # Etiqueta en el extremo inferior DERECHO
         self.right_footer = ctk.CTkLabel(
@@ -168,7 +168,7 @@ class VideoCopUI(ctk.CTk):
             text="Powered by Logic Automation",  # Cambia según tu necesidad
             font=("Arial", 14)
         )
-        self.right_footer.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+        #self.right_footer.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
         # --- VERIFICACIÓN Y APERTURA DE DIÁLOGO ---
         if not self.id_from_ini:
@@ -186,6 +186,8 @@ class VideoCopUI(ctk.CTk):
         self.btn_no.pack_forget()
         time.sleep(0.1)
         self.btn_call.pack(side="left", padx=30)
+        self.left_footer.pack(side="left", padx=30)
+        self.right_footer.pack(side="right", padx=30)
 
     def check_and_prompt_id(self):
         """Abre la ventana emergente si no hay un ID válido."""
@@ -368,5 +370,5 @@ class ClientIDDialog(ctk.CTkToplevel):
 
 if __name__ == "__main__":
     app = VideoCopUI()
-    app.after(600, lambda: app.refresh())
+    app.after(300, lambda: app.refresh())
     app.mainloop()
