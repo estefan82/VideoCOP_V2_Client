@@ -8,6 +8,8 @@ def actualizar_cliente_raspi():
     password = "1234"
     directorio_destino = "/home/admin/videocop/"
     nombre_archivo = "control-client.py"
+    #nombre_archivo = "metada.py"
+    #nombre_archivo = "ui-client.py"
 
     # --- LOCALIZACIÓN LOCAL ---
     directorio_script = Path(__file__).parent.absolute()

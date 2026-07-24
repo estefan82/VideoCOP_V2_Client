@@ -1,6 +1,8 @@
 import asyncio
 import json
 import inspect
+import time
+
 import cv2
 import base64
 import queue
@@ -143,6 +145,7 @@ class WebSocketClient:
         }
 
         self.clean_output_json()
+
     async def listen_messages(self):
         try:
             async for message in self.websocket:
@@ -952,12 +955,40 @@ class WebSocketClient:
             await asyncio.sleep(0.3)
             sys.exit(0)
 
+def get_or_wait_id(ext_client_id, ini_path, check_interval=2.0):
+    """
+    Si viene por sys.argv lo usa directamente.
+    Si no, bloquea la ejecución hasta que la UI guarde el ID en el INI.
+    """
+    # 1. Si vino por argumento CLI, lo retornamos inmediatamente
+    if ext_client_id and ext_client_id.strip():
+        return ext_client_id.strip()
+
+    config = configparser.ConfigParser()
+    print("Waiting for ID to set...")
+
+    # 2. Bucle de espera sincrónico
+    while True:
+        if os.path.exists(ini_path):
+            config.read(ini_path)
+            client_id = config.get("client", "id", fallback="").strip()
+
+            if client_id:
+                print(f"[WebSocketClient] ID detectado: {client_id}")
+                return client_id
+
+        time.sleep(check_interval)
+
 if __name__ == "__main__":
-    # Leer client_id del primer argumento
-    ext_client_id = sys.argv[1] if len(sys.argv) > 1 else None
-    print (f"Client ID from argument: {ext_client_id}")
-    client = WebSocketClient(ext_client_id)
-    print(f"Iniciando cliente con ID: {client.client_id}")
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    ini_path = os.path.join(base_path, "control-client.ini")
+
+    arg_client_id = sys.argv[1] if len(sys.argv) > 1 else None
+
+    final_client_id = get_or_wait_id(arg_client_id, ini_path)
+
+    print(f"Starting client ID: {final_client_id}")
+    client = WebSocketClient(final_client_id)
 
     #client = WebSocketClient()
     try:
