@@ -11,9 +11,11 @@ import metadata as metadata
 class VideoCopUI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        #configparser
-        # --- Detectar ruta base correctamente ---
+
+        self.new_host_client = None
         self.new_id_client = None
+
+        # --- Detectar ruta base correctamente ---
         if getattr(sys, 'frozen', False):
             # Si está ejecutándose como ejecutable PyInstaller
             self.base_path = os.path.dirname(sys.executable)
@@ -91,7 +93,9 @@ class VideoCopUI(ctk.CTk):
         self.control_client_config.read(self.control_client_config_path)
 
         self.id_from_ini = self.control_client_config.get("client", "id", fallback="").strip()
+        self.host_from_ini = self.control_client_config.get("client", "host", fallback="").strip()
         print(f"ID from control-client.ini: '{self.id_from_ini}'")
+        print(f"Host from control-client.ini: '{self.host_from_ini}'")
 
         # --- Etiquetas principales ---
         self.main_label = ctk.CTkLabel(
@@ -174,9 +178,15 @@ class VideoCopUI(ctk.CTk):
         self.right_footer.pack(side="right", padx=30)
 
         # --- VERIFICACIÓN Y APERTURA DE DIÁLOGO ---
-        if not self.id_from_ini:
-            # Usar after para asegurar que la ventana principal esté completamente renderizada antes de mostrar el modal
+
+
+        """if not self.id_from_ini:
             self.after(200, self.check_and_prompt_id)
+
+        if not self.host_from_ini:
+            self.after(200, self.check_and_prompt_host)"""
+
+        self.after(400, self.check_configuration_flow)
 
     def refresh(self):
         self.btn_call.pack_forget()
@@ -196,6 +206,17 @@ class VideoCopUI(ctk.CTk):
         self.right_footer.configure(text=f"Powered by Logic Automation")
         self.right_footer.pack(side="right", padx=30)
 
+    def check_configuration_flow(self):
+        self.update()
+        """Orquesta la apertura secuencial de los diálogos."""
+        # 1. Comprueba y pide la ID si no existe
+        if not self.id_from_ini:
+            self.check_and_prompt_id()
+
+        # 2. Comprueba y pide el Host si no existe (se ejecutará DESPUÉS de cerrar el diálogo de ID)
+        if not self.host_from_ini:
+            self.check_and_prompt_host()
+
     def check_and_prompt_id(self):
         """Abre la ventana emergente si no hay un ID válido."""
         dialog = ClientIDDialog(self, self.control_client_config_path)
@@ -206,6 +227,16 @@ class VideoCopUI(ctk.CTk):
             self.id_from_ini = dialog.new_id_client
             #self.id_label.configure(text=f"ID: {self.new_id_client}")
             print(f"Nuevo ID asignado y guardado: {self.new_id_client}")
+
+    def check_and_prompt_host(self):
+        """Abre la ventana emergente si no hay un ID válido."""
+        dialog = ClientHostDialog(self, self.control_client_config_path)
+        self.wait_window(dialog)
+
+        if dialog.new_host_client:
+            self.new_host_client = dialog.new_host_client
+            self.host_from_ini = dialog.new_host_client
+            print(f"Nuevo HOST asignado y guardado: {self.new_host_client}")
 
     # -------------------- COUNTDOWN fo call --------------------
     def start_call_countdown(self, event=None):
@@ -309,7 +340,6 @@ class VideoCopUI(ctk.CTk):
         except Exception as e:
             print(f"[!] Error updating input.json: {e}")
 
-
 # --- VENTANA MODAL PARA SOLICITAR ID CLIENTE ---
 class ClientIDDialog(ctk.CTkToplevel):
     def __init__(self, parent, ini_path):
@@ -320,6 +350,10 @@ class ClientIDDialog(ctk.CTkToplevel):
         self.title("Initial configuration")
         self.geometry("380x220")
         self.resizable(False, False)
+
+        # Deshabilitar la funcionalidad del botón de cerrar (X)
+        self.protocol("WM_DELETE_WINDOW", lambda: None)
+
 
         # Modalidad: Congela la ventana principal e impide interacción
         self.transient(parent)
@@ -375,6 +409,78 @@ class ClientIDDialog(ctk.CTkToplevel):
             config["client"] = {}
 
         config["client"]["id"] = client_id
+
+        with open(self.ini_path, "w", encoding="utf-8") as f:
+            config.write(f)
+
+# --- VENTANA MODAL PARA SOLICITAR HOST ---
+class ClientHostDialog(ctk.CTkToplevel):
+    def __init__(self, parent, ini_path):
+        super().__init__(parent)
+        self.ini_path = ini_path
+        self.new_host_client = None
+
+        self.title("Initial configuration")
+        self.geometry("380x220")
+        self.resizable(False, False)
+
+        # Deshabilitar la funcionalidad del botón de cerrar (X)
+        self.protocol("WM_DELETE_WINDOW", lambda: None)
+
+        # Modalidad: Congela la ventana principal e impide interacción
+        self.transient(parent)
+        self.grab_set()
+
+        # UI Layout
+        self.label = ctk.CTkLabel(
+            self,
+            text="New client.\nSet HOST:",
+            font=ctk.CTkFont(family="Arial", size=16, weight="bold")
+        )
+        self.label.pack(padx=20, pady=(20, 10))
+
+        self.entry = ctk.CTkEntry(
+            self,
+            placeholder_text="Ex: Server01 or 192.168.1.2",
+            width=260,
+            height=35,
+            font=("Arial", 14)
+        )
+        self.entry.pack(padx=20, pady=10)
+        self.entry.focus()
+        self.entry.bind("<Return>", lambda e: self._save_and_close())
+
+        self.btn_save = ctk.CTkButton(
+            self,
+            text="Save HOST",
+            width=140,
+            height=35,
+            font=("Arial", 14, "bold"),
+            command=self._save_and_close
+        )
+        self.btn_save.pack(padx=20, pady=(10, 20))
+
+        # --- APLICAR FOCO CORRECTAMENTE ---
+        self.focus_force()  # Trae el Toplevel al frente en el SO
+        self.after(100, self.entry.focus)
+
+    def _save_and_close(self):
+        val = self.entry.get().strip()
+        if val:
+            self.new_host_client = val
+            self._write_to_ini(val)
+            self.destroy()
+
+    def _write_to_ini(self, client_host):
+        """Guarda la clave 'id' en el archivo INI especificado"""
+        config = configparser.ConfigParser()
+        if os.path.exists(self.ini_path):
+            config.read(self.ini_path)
+
+        if "client" not in config:
+            config["client"] = {}
+
+        config["client"]["host"] = client_host
 
         with open(self.ini_path, "w", encoding="utf-8") as f:
             config.write(f)

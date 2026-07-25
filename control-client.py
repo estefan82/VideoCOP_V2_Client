@@ -957,7 +957,7 @@ class WebSocketClient:
             await asyncio.sleep(0.3)
             sys.exit(0)
 
-def get_or_wait_id(ext_client_id, ini_path, check_interval=2.0):
+def get_or_wait_param(ext_client_id, ini_path, check_interval=2.0):
     """
     Si viene por sys.argv lo usa directamente.
     Si no, bloquea la ejecución hasta que la UI guarde el ID en el INI.
@@ -967,16 +967,18 @@ def get_or_wait_id(ext_client_id, ini_path, check_interval=2.0):
         return ext_client_id.strip()
 
     config = configparser.ConfigParser()
-    print("Waiting for ID to set...")
+    print("Waiting for ID or Host to set...")
 
     # 2. Bucle de espera sincrónico
     while True:
         if os.path.exists(ini_path):
             config.read(ini_path)
             client_id = config.get("client", "id", fallback="").strip()
+            client_host = config.get("client", "host", fallback="").strip()
 
-            if client_id:
+            if client_id and client_host:
                 print(f"[WebSocketClient] ID detectado: {client_id}")
+                print(f"[WebSocketClient] Host: {client_host}")
                 return client_id
 
         time.sleep(check_interval)
@@ -987,12 +989,11 @@ if __name__ == "__main__":
 
     arg_client_id = sys.argv[1] if len(sys.argv) > 1 else None
 
-    final_client_id = get_or_wait_id(arg_client_id, ini_path)
+    final_client_id = get_or_wait_param(arg_client_id, ini_path)
 
     print(f"Starting client ID: {final_client_id}")
     client = WebSocketClient(final_client_id)
 
-    #client = WebSocketClient()
     try:
         asyncio.run(client.connect())
     except asyncio.CancelledError:

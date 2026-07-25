@@ -40,5 +40,6 @@ __author__ = "Isaias Estefan Moro"
 
 1.7.2
 - ID input on first ON
+- HOST input on first ON
 
 """
