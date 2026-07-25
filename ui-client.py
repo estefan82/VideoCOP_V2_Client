@@ -157,7 +157,7 @@ class VideoCopUI(ctk.CTk):
         # Etiqueta en el extremo inferior IZQUIERDO
         self.left_footer = ctk.CTkLabel(
             self,
-            text=f"V: {metadata.__version__}",  # Cambia según tu necesidad
+            text=f"V: ... ",  # Cambia según tu necesidad
             font=("Arial", 14)
         )
         #self.left_footer.place(relx=0.0, rely=1.0, anchor="sw", x=10, y=-10)
@@ -169,6 +169,9 @@ class VideoCopUI(ctk.CTk):
             font=("Arial", 14)
         )
         #self.right_footer.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+
+        self.left_footer.pack(side="left", padx=30)
+        self.right_footer.pack(side="right", padx=30)
 
         # --- VERIFICACIÓN Y APERTURA DE DIÁLOGO ---
         if not self.id_from_ini:
@@ -186,7 +189,11 @@ class VideoCopUI(ctk.CTk):
         self.btn_no.pack_forget()
         time.sleep(0.1)
         self.btn_call.pack(side="left", padx=30)
+
+        self.left_footer.configure(text=f"V: {metadata.__version__}")
         self.left_footer.pack(side="left", padx=30)
+
+        self.right_footer.configure(text=f"Powered by Logic Automation")
         self.right_footer.pack(side="right", padx=30)
 
     def check_and_prompt_id(self):
@@ -310,7 +317,7 @@ class ClientIDDialog(ctk.CTkToplevel):
         self.ini_path = ini_path
         self.new_id_client = None
 
-        self.title("Configuración Inicial")
+        self.title("Initial configuration")
         self.geometry("380x220")
         self.resizable(False, False)
 
@@ -321,14 +328,14 @@ class ClientIDDialog(ctk.CTkToplevel):
         # UI Layout
         self.label = ctk.CTkLabel(
             self,
-            text="ID de Cliente no configurado.\nIngrese el nuevo ID:",
+            text="New client.\nSet ID:",
             font=ctk.CTkFont(family="Arial", size=16, weight="bold")
         )
         self.label.pack(padx=20, pady=(20, 10))
 
         self.entry = ctk.CTkEntry(
             self,
-            placeholder_text="Ej: CAB-01",
+            placeholder_text="Ex: CAB-01",
             width=260,
             height=35,
             font=("Arial", 14)
@@ -339,13 +346,17 @@ class ClientIDDialog(ctk.CTkToplevel):
 
         self.btn_save = ctk.CTkButton(
             self,
-            text="Guardar ID",
+            text="Save ID",
             width=140,
             height=35,
             font=("Arial", 14, "bold"),
             command=self._save_and_close
         )
         self.btn_save.pack(padx=20, pady=(10, 20))
+
+        # --- APLICAR FOCO CORRECTAMENTE ---
+        self.focus_force()  # Trae el Toplevel al frente en el SO
+        self.after(100, self.entry.focus)
 
     def _save_and_close(self):
         val = self.entry.get().strip()

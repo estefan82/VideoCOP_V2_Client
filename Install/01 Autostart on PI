@@ -1,0 +1,12 @@
+mkdir -p ~/.config/autostart
+
+nano ~/.config/autostart/videocop.desktop
+
+[Desktop Entry]
+Type=Application
+Name=VideoCOP
+Exec=/bin/bash /home/admin/videocop/videocop-pyloop.sh
+Path=/home/admin/videocop/
+X-GNOME-Autostart-enabled=true
+
+sudo reboot
