@@ -1,26 +1,27 @@
 import paramiko
 from pathlib import Path
 
-def actualizar_cliente_raspi():
+def actualizar_cliente_raspi(archivo):
     # --- CONFIGURACIÓN ---
     host = "raspi5.local"
     usuario = "admin"
     password = "1234"
     directorio_destino = "/home/admin/videocop/"
     nombre_archivo = "control-client.py"
-    #nombre_archivo = "metada.py"
-    #nombre_archivo = "ui-client.py"
+    nombre_archivo2 = "metadata.py"
+    nombre_archivo3 = "ui-client.py"
+
 
     # --- LOCALIZACIÓN LOCAL ---
     directorio_script = Path(__file__).parent.absolute()
-    archivo_origen = directorio_script / nombre_archivo
+    archivo_origen = directorio_script / archivo
 
     # Si no está en la carpeta del script, buscar en el CWD (donde PyCharm ejecuta)
     if not archivo_origen.exists():
-        archivo_origen = Path.cwd() / nombre_archivo
+        archivo_origen = Path.cwd() / archivo
 
     if not archivo_origen.exists():
-        print(f"❌ Error: No se encuentra localmente '{nombre_archivo}'")
+        print(f"❌ Error: No se encuentra localmente '{archivo}'")
         return
 
     try:
@@ -33,7 +34,7 @@ def actualizar_cliente_raspi():
 
         # 2. Iniciar SFTP
         sftp = ssh.open_sftp()
-        ruta_remota = f"{directorio_destino}{nombre_archivo}".replace('\\', '/')
+        ruta_remota = f"{directorio_destino}{archivo}".replace('\\', '/')
 
         # --- BORRADO EN DESTINO SI EXISTE ---
         try:
@@ -45,7 +46,7 @@ def actualizar_cliente_raspi():
             print(f"ℹ️  El archivo no existe en el destino. Procediendo con subida limpia.")
 
         # 3. Subir el nuevo archivo
-        print(f"🚀 Enviando nuevo '{nombre_archivo}'...")
+        print(f"🚀 Enviando nuevo '{archivo}'...")
         sftp.put(str(archivo_origen), ruta_remota)
 
         sftp.close()
@@ -53,6 +54,8 @@ def actualizar_cliente_raspi():
 
         print("---------------------------------------")
         print("✅ ¡Proceso terminado con éxito en la Raspberry!")
+        print("---------------------------------------")
+        print("")
 
     except Exception as e:
         print("---------------------------------------")
@@ -60,4 +63,11 @@ def actualizar_cliente_raspi():
 
 
 if __name__ == "__main__":
-    actualizar_cliente_raspi()
+    lista = [
+        "control-client.py",
+        "metadata.py",
+        "ui-client.py"
+    ]
+
+    for archivo in lista:
+        actualizar_cliente_raspi(archivo)
