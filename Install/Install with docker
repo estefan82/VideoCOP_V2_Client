@@ -7,3 +7,5 @@
 7. sudo mkdir -p /home/videocop-config
 8. admin@videocop:~ $ git clone https://github.com/estefan82/VideoCOP_V2_Client.git
 8. sudo cp control-client.ini /home/videocop-config/
+9. docker compose up --build -d
+10. docker compose logs -f
