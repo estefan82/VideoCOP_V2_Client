@@ -92,7 +92,7 @@ class WebSocketClient:
 
         self.camera_device = self.config.get("video", "camera_device", fallback='No video device selected')
         print (f'Video device: {self.camera_device}')
-
+        self.resolved_device = os.path.realpath(self.camera_device)
 
         #camera device para fernan pi4
         #self.camera_device = "/dev/v4l/by-id/usb-VGA_USB_Camera_VGA_USB_Camera_2024022001-video-index0"
@@ -724,8 +724,9 @@ class WebSocketClient:
     async def video_sender(self, width=640, height=480, fps=20):
         """Captura video y lo envía como JSON por el WebSocket existente."""
         try:
-            cap = cv2.VideoCapture(0)
+            #cap = cv2.VideoCapture(0)
             #cap = cv2.VideoCapture(self.camera_device,cv2.CAP_V4L2)
+            cap = cv2.VideoCapture(self.resolved_device, cv2.CAP_V4L2)
 
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
