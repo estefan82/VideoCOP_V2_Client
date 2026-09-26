@@ -724,9 +724,10 @@ class WebSocketClient:
     async def video_sender(self, width=640, height=480, fps=20):
         """Captura video y lo envía como JSON por el WebSocket existente."""
         try:
-            #cap = cv2.VideoCapture(0)
+            # cero para docker se ignora video device en el .ini
+            cap = cv2.VideoCapture(0)
             #cap = cv2.VideoCapture(self.camera_device,cv2.CAP_V4L2)
-            cap = cv2.VideoCapture(self.resolved_device, cv2.CAP_V4L2)
+            #cap = cv2.VideoCapture(self.resolved_device, cv2.CAP_V4L2)
 
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
