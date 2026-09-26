@@ -512,7 +512,7 @@ class WebSocketClient:
             except queue.Empty:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
 
-        def callback(self, indata, outdata, frames, time, status):
+        def callback(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
