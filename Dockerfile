@@ -1,3 +1,5 @@
+FROM python:3.11-slim-bookworm
+
 # Instalar dependencias del sistema operativo para OpenCV y PortAudio/ALSA
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
