@@ -487,7 +487,7 @@ class WebSocketClient:
         self.audio_queue = queue.Queue(maxsize=5)
         self.mic_capture_queue = queue.Queue(maxsize=5)
 
-        def callback(indata, outdata, frames, time, status):
+        def callback00(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
@@ -509,6 +509,40 @@ class WebSocketClient:
             try:
                 data = self.audio_queue.get_nowait()
                 outdata[:] = data.reshape(-1, self.CHANNELS)
+            except queue.Empty:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+
+        def callback(self, indata, outdata, frames, time, status):
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            if status:
+                print("sounddevice status:", status)
+
+            # 1. ENTRADA (Guardar bytes crudos del micrófono)
+            try:
+                self.mic_capture_queue.put_nowait(indata.copy())
+            except queue.Full:
+                try:
+                    _ = self.mic_capture_queue.get_nowait()
+                    self.mic_capture_queue.put_nowait(indata.copy())
+                except queue.Empty:
+                    pass
+
+            # 2. SALIDA (Audio del Servidor hacia los parlantes) - SEGURO CONTRA TAMAÑOS VARIABLES
+            try:
+                data = self.audio_queue.get_nowait()
+                server_array = data.reshape(-1, self.CHANNELS)
+
+                if len(server_array) == frames:
+                    outdata[:] = server_array
+                elif len(server_array) > frames:
+                    outdata[:] = server_array[:frames]
+                else:
+                    outdata[: len(server_array)] = server_array
+                    outdata[len(server_array):] = 0
+
             except queue.Empty:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
 
