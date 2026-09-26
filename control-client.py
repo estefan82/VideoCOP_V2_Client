@@ -487,7 +487,7 @@ class WebSocketClient:
         self.audio_queue = queue.Queue(maxsize=5)
         self.mic_capture_queue = queue.Queue(maxsize=5)
 
-        def callback00(indata, outdata, frames, time, status):
+        def callback(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
@@ -512,7 +512,7 @@ class WebSocketClient:
             except queue.Empty:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
 
-        def callback(indata, outdata, frames, time, status):
+        def callback01(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
@@ -657,7 +657,7 @@ class WebSocketClient:
             self.audio_initializing = False
             return
 
-        def callback00(indata, outdata, frames, time, status):
+        def callback(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
@@ -707,7 +707,7 @@ class WebSocketClient:
             except Exception as callback_err:
                 print(f"Error en callback de audio: {callback_err}")
 
-        def callback(indata, outdata, frames, time, status):
+        def callback01(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
