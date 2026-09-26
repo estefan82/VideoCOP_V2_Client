@@ -9,3 +9,4 @@
 8. sudo cp control-client.ini /home/videocop-config/
 9. docker compose up --build -d
 10. docker compose logs -f
+11. https://www.waveshare.com/wiki/WM8960_Audio_HAT?srsltid=AU7gw4WAcAhNO0L9bfvseFx26oy5mGqHMWXpEJmMVfVJiql-xrFSlJmv           (Install waveshare wm8960)

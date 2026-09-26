@@ -623,7 +623,7 @@ class WebSocketClient:
             self.audio_initializing = False
             return
 
-        def callback(indata, outdata, frames, time, status):
+        def callback00(indata, outdata, frames, time, status):
             if not self.audio_active:
                 outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
                 return
@@ -666,6 +666,59 @@ class WebSocketClient:
             except queue.Full:
                 try:
                     # Si la cola hacia la red se satura, descartamos el frame más antiguo
+                    _ = self.mic_capture_queue.get_nowait()
+                    self.mic_capture_queue.put_nowait(clean_indata.copy())
+                except queue.Empty:
+                    pass
+            except Exception as callback_err:
+                print(f"Error en callback de audio: {callback_err}")
+
+        def callback(indata, outdata, frames, time, status):
+            if not self.audio_active:
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+                return
+
+            if status:
+                print("sounddevice status:", status)
+
+            # 1. SALIDA: Obtener audio del Servidor hacia los altavoces
+            try:
+                server_data = self.audio_queue.get_nowait()
+                server_array = server_data.reshape(-1, self.CHANNELS)
+
+                if len(server_array) == frames:
+                    outdata[:] = server_array
+                elif len(server_array) > frames:
+                    outdata[:] = server_array[:frames]
+                else:
+                    outdata[: len(server_array)] = server_array
+                    outdata[len(server_array):] = 0
+
+            except queue.Empty:
+                # Si no hay datos del servidor, reproducimos silencio
+                outdata[:] = np.zeros((frames, self.CHANNELS), np.int16)
+
+            # 2. ENTRADA: Sincronizar Referencia y Cancelar Eco en tiempo real
+            try:
+                mic_bytes = indata.tobytes()
+                speaker_bytes = outdata.tobytes()
+
+                self.speaker_history.append(speaker_bytes)
+
+                if len(self.speaker_history) < BLOCK_DELAY:
+                    reference_bytes = bytes(len(speaker_bytes))
+                else:
+                    reference_bytes = self.speaker_history.pop(0)
+
+                clean_audio_bytes = self.echo_canceller.process(mic_bytes, reference_bytes)
+                clean_indata = np.frombuffer(clean_audio_bytes, dtype=np.int16).reshape(
+                    -1, self.CHANNELS
+                )
+
+                self.mic_capture_queue.put_nowait(clean_indata.copy())
+
+            except queue.Full:
+                try:
                     _ = self.mic_capture_queue.get_nowait()
                     self.mic_capture_queue.put_nowait(clean_indata.copy())
                 except queue.Empty:
