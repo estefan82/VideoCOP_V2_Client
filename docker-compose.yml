@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  videocop-client:
+    build: .
+    container_name: videocop_client
+    restart: unless-stopped
+    devices:
+      - /dev/video0:/dev/video0       # Acceso a la cámara / V4L2
+      - /dev/snd:/dev/snd             # Acceso al sistema de sonido ALSA
+      #- /dev/gpiomem:/dev/gpiomem     # GPIOs (Raspberry Pi 4)
+      - /dev/gpiochip4:/dev/gpiochip4 # GPIOs (Raspberry Pi 5)
+    privileged: true                  # Evita bloqueos de permisos con el hardware
+    volumes:
+      # Mapeamos la carpeta del host /home/videocop-config directamente a /app dentro del contenedor
+      # De esta forma, el .ini y los .json vivirán y se persistirán en esa ruta de la Raspberry Pi.
+      - /home/videocop-config:/app
+    environment:
+      - PYTHONUNBUFFERED=1

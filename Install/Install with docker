@@ -1,0 +1,9 @@
+1. curl -fsSL https://get.docker.com -o get-docker.sh
+2. sudo sh get-docker.sh
+3. sudo usermod -aG docker $USER
+4. sudo reboot
+5. docker --version
+6. docker compose version
+7. sudo mkdir -p /home/videocop-config
+8. admin@videocop:~ $ git clone https://github.com/estefan82/VideoCOP_V2_Client.git
+8. sudo cp control-client.ini /home/videocop-config/
