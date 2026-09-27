@@ -3,7 +3,7 @@ import os
 import sys
 import platform
 import time
-
+import urllib.request
 import customtkinter as ctk
 import configparser
 import metadata as metadata
@@ -277,7 +277,8 @@ class VideoCopUI(ctk.CTk):
         self.input_json(response=name)
         print(f"[BUTTON] {name} pressed")
         time.sleep(1)
-    def update_json_loop(self):
+
+    def update_json_loop00(self):
         try:
             if os.path.exists(self.output_path):
                 with open(self.output_path, "r", encoding="utf-8") as f:
@@ -289,6 +290,25 @@ class VideoCopUI(ctk.CTk):
                 self.message_label.configure(text="output.json not found...")
         except Exception as e:
             self.message_label.configure(text=f"[Error reading JSON]\n{e}")
+        self.after(500, self.update_json_loop)
+
+    def update_json_loop(self):
+        try:
+            url = "http://127.0.0.1:8766/estado"
+            # Hacemos la petición GET al servidor HTTP local en RAM
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=0.5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode("utf-8"))
+                    if data != self.json_data:
+                        self.json_data = data
+                        # Nota: asegúrate de llamar a tu método de UI (puede ser update_ui_from_json o from_socket)
+                        self.update_ui_from_json(data)
+        except Exception as e:
+            # Si el servidor backend aún no está listo o hay un corte temporal
+            self.message_label.configure(text="Waiting for backend...")
+
+        # Sigue haciendo el polling exactamente igual cada 500ms
         self.after(500, self.update_json_loop)
     def update_ui_from_json(self, data):
         print (data)
@@ -303,7 +323,7 @@ class VideoCopUI(ctk.CTk):
             self.end_call()
 
     # -------------------- EXCHANGE JSON --------------------
-    def input_json(self, call=None, response=None):
+    def input_json00(self, call=None, response=None):
         """
                 Crea o actualiza un archivo input JSON con el estado actual del cliente WebSocket.
                 Solo actualiza los campos que reciban un valor distinto de None.
@@ -339,6 +359,28 @@ class VideoCopUI(ctk.CTk):
             print(f"[✓] input.json updated in {self.input_path}")
         except Exception as e:
             print(f"[!] Error updating input.json: {e}")
+
+    def input_json(self, call=None, response=None):
+        try:
+            url = "http://127.0.0.1:8766/actualizar"
+            payload = {}
+            if call is not None:
+                payload["call"] = bool(call)
+            if response is not None:
+                payload["response"] = response
+
+            data_bytes = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data_bytes,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                print("[✓] Comando enviado por HTTP")
+        except Exception as e:
+            print(f"[!] Error enviando comando HTTP: {e}")
 
 # --- VENTANA MODAL PARA SOLICITAR ID CLIENTE ---
 class ClientIDDialog(ctk.CTkToplevel):

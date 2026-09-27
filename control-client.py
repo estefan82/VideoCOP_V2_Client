@@ -17,6 +17,12 @@ import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
 
+import asyncio
+from datetime import datetime
+import json
+from fastapi import FastAPI, HTTPException
+import uvicorn
+
 """ Important
 for pi 3 or 4
 remove input on:
@@ -149,6 +155,39 @@ class WebSocketClient:
 
         self.clean_output_json()
 
+        # --- ESTADOS EN MEMORIA RAM (Sustituyen a los archivos JSON) ---
+        self.ESTADO_SALIDA = {
+            "id": "---",
+            "status": "disconnected",
+            "call_status": False,
+            "audio_stream": False,
+            "video_stream": False,
+            "server_message": "",
+            "only_text": False,
+        }
+        self.ESTADO_ENTRADA = {"call": False, "response": None}
+
+        # Inicializar FastAPI local para el polling de la UI
+        self.app = FastAPI()
+        self._setup_fastapi_routes()
+
+    # ==========================================
+    # CONFIGURACIÓN DE FASTAPI EN RAM
+    # ==========================================
+    def _setup_fastapi_routes(self):
+        @self.app.get("/estado")
+        def obtener_estado():
+            return self.ESTADO_SALIDA
+
+        @self.app.post("/actualizar")
+        def actualizar_entrada(datos: dict):
+            self.ESTADO_ENTRADA.update(datos)
+            return {"status": "ok"}
+
+    def run_fastapi_server(self):
+        """Ejecuta el servidor HTTP en un puerto local fijo."""
+        uvicorn.run(self.app, host="127.0.0.1", port=8766, log_level="warning")
+
     async def listen_messages(self):
         try:
             async for message in self.websocket:
@@ -245,7 +284,7 @@ class WebSocketClient:
             print(f"[!] Error escuchando mensajes: {e}")
 
     #Exchange JSON
-    def clean_output_json(self):
+    def clean_output_json00(self):
         # Estructura base
         data = {
             "id": "---",
@@ -261,8 +300,7 @@ class WebSocketClient:
         with open(self.output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         return
-
-    def output_json(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
+    def output_json00(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
         Crea o actualiza un archivo JSON con el estado actual del cliente WebSocket.
         Solo actualiza los campos que reciban un valor distinto de None.
@@ -316,7 +354,7 @@ class WebSocketClient:
 
         except Exception as e:
             print(f"[!] Error actualizando output.json: {e}")
-    async def clean_input_json(self):
+    async def clean_input_json00(self):
         """Vacía el contenido del archivo JSON sin eliminarlo."""
 
         if os.path.exists(self.input_path):
@@ -329,7 +367,7 @@ class WebSocketClient:
                 print(f"Error al limpiar el archivo: {e}")
         else:
             print(f"El archivo {self.input_path} no existe.")
-    async def update_json_loop(self, interval=1):
+    async def update_json_loop00(self, interval=1):
         """
         Monitoriza input.json y envía eventos al servidor sin debounce.
 
@@ -376,6 +414,74 @@ class WebSocketClient:
                 print(f"[Error leyendo JSON] {e}")
 
             await asyncio.sleep(interval)
+
+    def clean_output_json(self):
+        self.ESTADO_SALIDA = {
+            "id": "---",
+            "status": "disconnected",
+            "call_status": False,
+            "audio_stream": False,
+            "video_stream": False,
+            "server_message": "",
+            "only_text": False,
+        }
+
+    def output_json(
+            self,
+            id_str=None,
+            status=None,
+            audio_stream=None,
+            video_stream=None,
+            server_message=None,
+            only_text=None,
+    ):
+        try:
+            if id_str is not None:
+                self.ESTADO_SALIDA["id"] = id_str
+            if status is not None:
+                self.ESTADO_SALIDA["status"] = "connected" if status else "disconnected"
+            if audio_stream is not None:
+                self.ESTADO_SALIDA["audio_stream"] = bool(audio_stream)
+            if video_stream is not None:
+                self.ESTADO_SALIDA["video_stream"] = bool(video_stream)
+            if server_message is not None:
+                self.ESTADO_SALIDA["server_message"] = server_message
+            if only_text is not None:
+                self.ESTADO_SALIDA["only_text"] = bool(only_text)
+
+            print("[✓] Estado en RAM actualizado.")
+        except Exception as e:
+            print(f"[!] Error actualizando estado en RAM: {e}")
+
+    async def clean_input_json(self):
+        """Limpia el estado de entrada en RAM."""
+        self.ESTADO_ENTRADA = {"call": False, "response": None}
+    async def update_json_loop(self, interval=0.1):
+        """Monitoriza ESTADO_ENTRADA en RAM en lugar de input.json."""
+        self.sending_cooldown = False
+        while True:
+            try:
+                # =========================
+                # EMERGENCY CALL
+                # =========================
+                if self.ESTADO_ENTRADA.get("call", False):
+                    print("EMERGENCY SENT", datetime.now())
+                    await self.send_json(self.msg_type_server[1], "Emergency Call")
+                    self.ESTADO_ENTRADA["call"] = False
+
+                # =========================
+                # RESPUESTAS YES / NO
+                # =========================
+                response = self.ESTADO_ENTRADA.get("response")
+                if response in ("YES", "NO"):
+                    print(f"📨 Response detected: {response}")
+                    await self.send_json(self.msg_type_server[1], response)
+                    self.ESTADO_ENTRADA["response"] = None
+
+            except Exception as e:
+                print(f"[Error procesando estado de entrada] {e}")
+
+            await asyncio.sleep(interval)
     async def _cooldown_timer(self, cooldown):
         """Timer para desbloquear cooldown después de X segundos."""
         await asyncio.sleep(cooldown)
@@ -384,6 +490,10 @@ class WebSocketClient:
     # Connect block
     async def connect(self):
         print(f"OS detected: {os.name}")
+
+        import threading
+        threading.Thread(target=self.run_fastapi_server, daemon=True).start()
+        print("[✓] Servidor HTTP local en RAM iniciado en puerto 8766")
 
         while True:
             try:
