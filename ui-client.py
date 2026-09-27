@@ -302,7 +302,7 @@ class VideoCopUI(ctk.CTk):
                     data = json.loads(response.read().decode("utf-8"))
                     if data != self.json_data:
                         self.json_data = data
-                        # Nota: asegúrate de llamar a tu método de UI (puede ser update_ui_from_json o from_socket)
+                        # Nota: asegúrate de llamar a tu UI (puede ser update_ui_from_json o from_socket)
                         self.update_ui_from_json(data)
         except Exception as e:
             # Si el servidor backend aún no está listo o hay un corte temporal
