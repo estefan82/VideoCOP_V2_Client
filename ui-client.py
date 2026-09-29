@@ -15,6 +15,16 @@ class VideoCopUI(ctk.CTk):
         self.new_host_client = None
         self.new_id_client = None
 
+        self.ui_status = {
+            "id": "",
+            "status": "disconnected",
+            "call_status": False,
+            "audio_stream": False,
+            "video_stream": False,
+            "server_message": "",
+            "only_text": False
+        }
+
         # --- Detectar ruta base correctamente ---
         if getattr(sys, 'frozen', False):
             # Si está ejecutándose como ejecutable PyInstaller
@@ -155,7 +165,7 @@ class VideoCopUI(ctk.CTk):
         self.btn_call.pack(side="left", padx=30)
         self.btn_call.focus_set()
 
-        self.update_json_loop()
+        #self.update_json_loop()
         self.bind("<Escape>", lambda e: self.destroy())
 
         # Etiqueta en el extremo inferior IZQUIERDO
@@ -193,16 +203,106 @@ class VideoCopUI(ctk.CTk):
         self.target_udp_port = 1001
         self.peer = UDPPeer(my_port=self.my_udp_port,
                        target_port=self.target_udp_port,
-                       on_message=self.udp_coms_message
+                       on_message=self.incoming_message
                        )
 
         self.peer.start_server()
 
-        self.peer.send("Prueba desde ui-client")
+        #self.peer.send("Prueba desde ui-client")
+
+    # -------------------- Exchange funtion --------------------
+    def incoming_message00(self, data):
+        print (f"Message from target: {data}")
+
+        self.id_label.configure(text=f"ID: {data.get('id', '---')}")
+        msg = data.get("server_message", "")
+        if not msg:
+            msg = "Welcome to VideoCOP"
+        self.message_label.configure(text=msg)
+
+        if data.get("id"):
+            self.ui_status["id"]=data.get("id")
+        if data.get("status"):
+            self.ui_status["status"]=data.get("status")
+        if data.get("call_status"):
+            self.ui_status["call_status"]=data.get("call_status")
+        if data.get("audio_stream"):
+            self.ui_status["audio_stream"]=data.get("audio_stream")
+        if data.get("video_stream"):
+            self.ui_status["video_stream"]=data.get("video_stream")
+        if data.get("server_message"):
+            self.ui_status["server_message"]=data.get("server_message")
+        if data.get("only_text"):
+            self.ui_status["only_text"]=data.get("only_text")
 
 
-    def udp_coms_message(self, msg):
-        print (f"Message from target: {msg}")
+        if data.get("audio_stream") or data.get("video_stream") or data.get("only_text"):
+            #self.on_call()
+            self.btn_call.pack_forget()
+            self.btn_yes.pack(side="left", padx=30)
+            self.btn_no.pack(side="left", padx=30)
+            print("[INFO] Llamada iniciada")
+
+        if ui_status["audio_stream"] == False and ui_status["video_stream"] == False and ui_status["only_text"] == False:
+            """Finaliza la llamada"""
+            self.btn_yes.pack_forget()
+            self.btn_no.pack_forget()
+            self.btn_call.pack(side="left", padx=30)
+            # print("[INFO] Llamada finalizada automáticamente call reset")
+            print("[INFO] Call ended, call reset")
+
+    def incoming_message(self, data):
+        print(f"Message from target: {data}")
+
+        # Actualizar etiquetas de la interfaz
+        self.id_label.configure(text=f"ID: {data.get('id', '---')}")
+        msg = data.get("server_message", "")
+        if not msg:
+            msg = "Welcome to VideoCOP"
+        self.message_label.configure(text=msg)
+
+        # Actualizar self.ui_status de forma más limpia usando las claves que lleguen
+        keys_to_update = [
+            "id", "status", "call_status", "audio_stream",
+            "video_stream", "server_message", "only_text"
+        ]
+        for key in keys_to_update:
+            if key in data:
+                self.ui_status[key] = data[key]
+
+        # Comprobar si hay alguna señal activa de llamada/streaming
+        has_active_stream = (
+                data.get("audio_stream") or
+                data.get("video_stream") or
+                data.get("only_text")
+        )
+
+        if has_active_stream:
+            self.btn_call.pack_forget()
+            self.btn_yes.pack(side="left", padx=30)
+            self.btn_no.pack(side="left", padx=30)
+            print("[INFO] Llamada iniciada")
+
+        # Corregido: añadido self.ui_status (faltaba el self antes)
+        elif (
+                not self.ui_status.get("audio_stream", True) and
+                not self.ui_status.get("video_stream", True) and
+                not self.ui_status.get("only_text", True)
+        ):
+            """Finaliza la llamada"""
+            self.btn_yes.pack_forget()
+            self.btn_no.pack_forget()
+            self.btn_call.pack(side="left", padx=30)
+            print("[INFO] Call ended, call reset")
+
+    def outgoing_message(self, call=None, response=None):
+        data00 = {"call": "", "response": ""}
+        data = {}
+        if call is not None:
+            data["call"] = bool(call)
+        if response is not None:
+            data["response"] = response
+        self.peer.send(data)
 
     def refresh(self):
         self.btn_call.pack_forget()
@@ -221,7 +321,6 @@ class VideoCopUI(ctk.CTk):
 
         self.right_footer.configure(text=f"Powered by Logic Automation")
         self.right_footer.pack(side="right", padx=30)
-
     def check_configuration_flow(self):
         self.update()
         """Orquesta la apertura secuencial de los diálogos."""
@@ -232,7 +331,6 @@ class VideoCopUI(ctk.CTk):
         # 2. Comprueba y pide el Host si no existe (se ejecutará DESPUÉS de cerrar el diálogo de ID)
         if not self.host_from_ini:
             self.check_and_prompt_host()
-
     def check_and_prompt_id(self):
         """Abre la ventana emergente si no hay un ID válido."""
         dialog = ClientIDDialog(self, self.control_client_config_path)
@@ -243,7 +341,6 @@ class VideoCopUI(ctk.CTk):
             self.id_from_ini = dialog.new_id_client
             #self.id_label.configure(text=f"ID: {self.new_id_client}")
             print(f"Nuevo ID asignado y guardado: {self.new_id_client}")
-
     def check_and_prompt_host(self):
         """Abre la ventana emergente si no hay un ID válido."""
         dialog = ClientHostDialog(self, self.control_client_config_path)
@@ -266,7 +363,8 @@ class VideoCopUI(ctk.CTk):
             self.btn_call.configure(text="Call")
             self.after_cancel(self.call_timer)
             self.call_timer = None
-            self.input_json(call=True)
+            #self.input_json(call=True)
+            self.outgoing_message(call=True)
             self.call_countdown = self.config.getint("setup", "call_countdown")
     def cancel_call_countdown(self, event=None):
         if self.call_timer:
@@ -274,7 +372,8 @@ class VideoCopUI(ctk.CTk):
             self.call_timer = None
             self.btn_call.configure(text="Call")
     def call_asap(self):
-        self.input_json(call=True)
+        #self.input_json(call=True)
+        self.outgoing_message(call=True)
 
     # -------------------- UI LOGIC --------------------
     def on_call(self):
@@ -290,9 +389,12 @@ class VideoCopUI(ctk.CTk):
         #print("[INFO] Llamada finalizada automáticamente call reset")
         print("[INFO] Call ended, call reset")
     def on_button(self, name):
-        self.input_json(response=name)
+        #self.input_json(response=name)
+        self.outgoing_message(response=name)
         print(f"[BUTTON] {name} pressed")
         time.sleep(1)
+
+    # Not in use
     def update_json_loop(self):
         try:
             if os.path.exists(self.output_path):
@@ -305,7 +407,8 @@ class VideoCopUI(ctk.CTk):
                 self.message_label.configure(text="output.json not found...")
         except Exception as e:
             self.message_label.configure(text=f"[Error reading JSON]\n{e}")
-        self.after(500, self.update_json_loop)
+        #self.after(500, self.update_json_loop)
+
     def update_ui_from_json(self, data):
         print (data)
         self.id_label.configure(text=f"ID: {data.get('id', '---')}")
@@ -317,6 +420,7 @@ class VideoCopUI(ctk.CTk):
             self.on_call()
         if data.get("audio_stream")==False and data.get("video_stream")==False and data.get("only_text")==False:
             self.end_call()
+
 
     # -------------------- EXCHANGE JSON --------------------
     def input_json(self, call=None, response=None):
@@ -407,14 +511,12 @@ class ClientIDDialog(ctk.CTkToplevel):
         # --- APLICAR FOCO CORRECTAMENTE ---
         self.focus_force()  # Trae el Toplevel al frente en el SO
         self.after(100, self.entry.focus)
-
     def _save_and_close(self):
         val = self.entry.get().strip()
         if val:
             self.new_id_client = val
             self._write_to_ini(val)
             self.destroy()
-
     def _write_to_ini(self, client_id):
         """Guarda la clave 'id' en el archivo INI especificado"""
         config = configparser.ConfigParser()
@@ -479,14 +581,12 @@ class ClientHostDialog(ctk.CTkToplevel):
         # --- APLICAR FOCO CORRECTAMENTE ---
         self.focus_force()  # Trae el Toplevel al frente en el SO
         self.after(100, self.entry.focus)
-
     def _save_and_close(self):
         val = self.entry.get().strip()
         if val:
             self.new_host_client = val
             self._write_to_ini(val)
             self.destroy()
-
     def _write_to_ini(self, client_host):
         """Guarda la clave 'id' en el archivo INI especificado"""
         config = configparser.ConfigParser()

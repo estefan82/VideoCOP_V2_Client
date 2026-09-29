@@ -147,22 +147,65 @@ class WebSocketClient:
             "text": str("text")
         }
 
-        self.clean_output_json()
+        #self.clean_output_json()
 
         # ___________  UDP_PEER ______________
         self.my_udp_port = 1001
         self.target_udp_port = 1002
         self.peer = UDPPeer(my_port=self.my_udp_port,
                        target_port=self.target_udp_port,
-                       on_message=self.udp_coms_message
+                       on_message=self.incoming_message
                        )
 
         self.peer.start_server()
-
         self.peer.send("Prueba desde control-client")
 
-    def udp_coms_message(self, msg):
-        print (f"Message from target: {msg}")
+    def incoming_message(self, msg):
+        print(f"Message from target: {msg}")
+
+    def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
+        """
+                Envia por Socket a target.
+                Solo actualiza los campos que reciban un valor distinto de None.
+
+                Parámetros:
+                    id_str (str | None): Identificador del cliente.
+                    status (bool | None): True si conectado, False si desconectado.
+                    call_status (bool | None): True si conectado, False si desconectado.
+                    audio_stream (bool | None): True si conectado, False si desconectado.
+                    video_stream (bool | None): True si conectado, False si desconectado.
+                    server_message (str | None): Último mensaje del servidor.
+                    only text mode (bool | None): Only text mode On (True)
+                """
+        data00 = {
+            "id": "",
+            "status": "disconnected",
+            "call_status": False,
+            "audio_stream": False,
+            "video_stream": False,
+            "server_message": "",
+            "only_text": False
+        }
+
+        data = {}
+
+        # Actualizar solo los valores que no son None
+        if id_str is not None:
+            data["id"] = id_str
+        if status is not None:
+            data["status"] = "connected" if status else "disconnected"
+        if audio_stream is not None:
+            data["audio_stream"] = bool(audio_stream)
+        if video_stream is not None:
+            data["video_stream"] = bool(video_stream)
+        if server_message is not None:
+            data["server_message"] = server_message
+        if only_text is not None:
+            data["only_text"] = bool(only_text)
+
+        print (data)
+
+        self.peer.send(data)
 
     async def listen_messages(self):
         try:
@@ -179,13 +222,15 @@ class WebSocketClient:
                     print(f"<<< Heartbeat OK ({data['time']})")
 
                 elif data.get("type") == "server_message":
-                    self.output_json(server_message=data['text'])
+                    #self.output_json(server_message=data['text'])
+                    self.outgoing_message(server_message=data['text'])
                     print(f"<<< server_message: {data['text']}")
 
                 elif data.get("type") == "audio_start":
                     print("Orden recibida: iniciar transmisión de audio")
                     await self.start_audio_stream()
-                    self.output_json(audio_stream=True)
+                    #self.output_json(audio_stream=True)
+                    self.outgoing_message(audio_stream=True)
                     #asyncio.create_task(self.start_audio_stream())
                     continue
 
@@ -197,7 +242,8 @@ class WebSocketClient:
 
                 elif data.get("type") == "audio_stop00":
                     print("Orden recibida: detener transmisión de audio")
-                    self.output_json(audio_stream=False)
+                    #self.output_json(audio_stream=False)
+                    self.outgoing_message(audio_stream=False)
                     self.audio_active = False  # Detiene callback inmediatamente
                     if self.audio_stream:
                         try:
@@ -217,13 +263,15 @@ class WebSocketClient:
 
                 elif data.get("type") == "audio_stop":
                     print("Orden recibida: detener transmisión de audio")
-                    self.output_json(audio_stream=False)
+                    #self.output_json(audio_stream=False)
+                    self.outgoing_message(audio_stream=False)
                     self.stop_audio_output()  # Usamos la función optimizada directa
                     continue
 
                 elif data.get("type") == "video_start":
                     print("Orden recibida: iniciar transmisión de video")
-                    self.output_json(video_stream=True)
+                    #self.output_json(video_stream=True)
+                    self.outgoing_message(video_stream=True)
                     await self.start_video()
                     continue
 
@@ -234,7 +282,8 @@ class WebSocketClient:
 
                 elif data.get("type") == "video_stop":
                     print("Orden recibida: detener transmisión de video")
-                    self.output_json(video_stream=False)
+                    #self.output_json(video_stream=False)
+                    self.outgoing_message(video_stream=False)
                     await self.stop_video()
                     continue
 
@@ -247,11 +296,13 @@ class WebSocketClient:
 
                 elif data.get("type") == self.msg_type_server[8]:
                     print ("Only text mode On")
-                    self.output_json(only_text=True)
+                    #self.output_json(only_text=True)
+                    self.outgoing_message(only_text=True)
 
                 elif data.get("type") == self.msg_type_server[9]:
                     print ("Only text mode Off")
-                    self.output_json(only_text=False)
+                    #self.output_json(only_text=False)
+                    self.outgoing_message(only_text=False)
 
                 else:
                     print(f"data {data}")
@@ -413,13 +464,14 @@ class WebSocketClient:
                         loop.add_signal_handler(signal.SIGTERM, loop.create_task, websocket.close_timeout)
 
                     print(" Conectado al servidor.")
-                    self.output_json(self.client_id, True, audio_stream=False, video_stream=False, only_text=False)
+                    #self.output_json(self.client_id, True, audio_stream=False, video_stream=False, only_text=False)
+                    self.outgoing_message(id_str=self.client_id, status=True, audio_stream=False, video_stream=False, only_text=False)
 
                     #clean input JSON once
-                    asyncio.create_task(self.clean_input_json())
+                    #asyncio.create_task(self.clean_input_json())
 
                     # start loop for input JSON
-                    json_task = asyncio.create_task(self.update_json_loop())
+                    #json_task = asyncio.create_task(self.update_json_loop())
 
                     await asyncio.gather(
                         self.listen_messages(),
@@ -429,15 +481,16 @@ class WebSocketClient:
                     )
 
                     # end loop for input json
-                    json_task.cancel()
-                    try:
-                        await json_task
-                    except asyncio.CancelledError:
-                        pass
+                    #json_task.cancel()
+                    #try:
+                        #await json_task
+                    #except asyncio.CancelledError:
+                        #pass
 
             except Exception as e:
                 print(f"Error de conexión: {e}, exiting in 1s...")
-                self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+                #self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+                self.outgoing_message(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
                 await asyncio.sleep(1)
                 sys.exit(0)
 
@@ -987,7 +1040,6 @@ class WebSocketClient:
             print(datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S"))
             print(ini_content)  # Esto te permite ver exactamente qué enviaste
             print("---------------------------------------")
-
         except Exception as e:
             print(f"Error al enviar la configuración: {e}")
     def save_config_file(self):
@@ -1059,7 +1111,9 @@ class WebSocketClient:
             for task in asyncio.all_tasks():
                 if task is not asyncio.current_task():
                     task.cancel()
-            self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+            #self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+            self.outgoing_message(id_str="---", status=False, server_message="", audio_stream=False, video_stream=False,
+                             only_text=False)
             await asyncio.sleep(0.3)
             sys.exit(0)
 
