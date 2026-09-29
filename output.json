@@ -4,6 +4,6 @@
     "call_status": false,
     "audio_stream": false,
     "video_stream": false,
-    "server_message": "hola",
-    "only_text": true
+    "server_message": "",
+    "only_text": false
 }

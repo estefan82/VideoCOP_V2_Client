@@ -3,10 +3,10 @@ import os
 import sys
 import platform
 import time
-
 import customtkinter as ctk
 import configparser
 import metadata as metadata
+from udp_peer import UDPPeer
 
 class VideoCopUI(ctk.CTk):
     def __init__(self):
@@ -187,6 +187,22 @@ class VideoCopUI(ctk.CTk):
             self.after(200, self.check_and_prompt_host)"""
 
         self.after(400, self.check_configuration_flow)
+
+        # ___________  UDP_PEER ______________
+        self.my_udp_port = 1002
+        self.target_udp_port = 1001
+        self.peer = UDPPeer(my_port=self.my_udp_port,
+                       target_port=self.target_udp_port,
+                       on_message=self.udp_coms_message
+                       )
+
+        self.peer.start_server()
+
+        self.peer.send("Prueba desde ui-client")
+
+
+    def udp_coms_message(self, msg):
+        print (f"Message from target: {msg}")
 
     def refresh(self):
         self.btn_call.pack_forget()

@@ -2,7 +2,6 @@ import asyncio
 import json
 import inspect
 import time
-
 import cv2
 import base64
 import queue
@@ -16,6 +15,7 @@ import configparser
 import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
+from udp_peer import UDPPeer
 
 """ Important
 for pi 3 or 4
@@ -148,6 +148,21 @@ class WebSocketClient:
         }
 
         self.clean_output_json()
+
+        # ___________  UDP_PEER ______________
+        self.my_udp_port = 1001
+        self.target_udp_port = 1002
+        self.peer = UDPPeer(my_port=self.my_udp_port,
+                       target_port=self.target_udp_port,
+                       on_message=self.udp_coms_message
+                       )
+
+        self.peer.start_server()
+
+        self.peer.send("Prueba desde control-client")
+
+    def udp_coms_message(self, msg):
+        print (f"Message from target: {msg}")
 
     async def listen_messages(self):
         try:
