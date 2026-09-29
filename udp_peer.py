@@ -12,6 +12,7 @@ class UDPPeer:
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.sock.bind(("127.0.0.1", self.my_port))
     self.running = True
+    print (f"runing my_port: {my_port}, target_port: {target_port}")
 
   def start_server(self):
     threading.Thread(target=self._receive_loop, daemon=True).start()
@@ -44,3 +45,4 @@ class UDPPeer:
   def close(self):
     self.running = False
     self.sock.close()
+    print (f"closed my_port: {self.my_port}, target_port: {self.target_port}")
