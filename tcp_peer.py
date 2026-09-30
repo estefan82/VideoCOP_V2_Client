@@ -32,30 +32,60 @@ class TcpPeer:
       server_sock.listen(1)
       print(f"[DEBUG] Servidor escuchando en {self.host}:{self.port}...")
 
-      self.conn, addr = server_sock.accept()
-      print(f"[DEBUG] ¡Conexión aceptada del cliente en {addr}!")
-      self._listen_socket(on_message)
+      # Bucle infinito para aceptar múltiples conexiones sucesivas si se cae el cliente
+      while self.running:
+        try:
+          print(f"[DEBUG] Esperando conexión de cliente...")
+          self.conn, addr = server_sock.accept()
+          print(f"[DEBUG] ¡Conexión aceptada del cliente en {addr}!")
+
+          # Escuchamos los mensajes de esta conexión
+          self._listen_socket(on_message)
+
+        except Exception as e:
+          print(f"[DEBUG] Error en la conexión actual del servidor: {e}")
+        finally:
+          if self.conn:
+            try:
+              self.conn.close()
+            except:
+              pass
+            self.conn = None
+
     except Exception as e:
-      print(f"[DEBUG] Error crítico en _run_server: {e}")
+      print(f"[DEBUG] Error crítico en el socket servidor: {e}")
     finally:
       server_sock.close()
 
   def _run_client(self, on_message):
-    self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Bucle infinito para reintentar la conexión si el servidor cae o aún no está encendido
     while self.running:
       try:
+        self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print(f"[DEBUG] Intentando conectar al servidor en {self.host}:{self.port}...")
         self.conn.connect((self.host, self.port))
         print(f"[DEBUG] ¡Conectado exitosamente con el servidor!")
-        break
-      except ConnectionRefusedError:
-        time.sleep(0.5)
-      except Exception as e:
-        print(f"[DEBUG] Error al intentar conectar: {e}")
-        time.sleep(0.5)
 
-    if self.running:
-      self._listen_socket(on_message)
+        # Escuchamos los mensajes
+        self._listen_socket(on_message)
+
+      except (ConnectionRefusedError, socket.error):
+        print(
+            "[DEBUG] Servidor no disponible o conexión perdida. Reintentando en"
+            " 1s..."
+        )
+      except Exception as e:
+        print(f"[DEBUG] Error inesperado en cliente: {e}")
+      finally:
+        if self.conn:
+          try:
+            self.conn.close()
+          except:
+            pass
+          self.conn = None
+
+      # Espera antes de volver a intentar la conexión si se cayó
+      time.sleep(1.0)
 
   def _listen_socket(self, on_message):
     buffer = ""
@@ -89,7 +119,7 @@ class TcpPeer:
         print(f"[DEBUG] Excepción inesperada en _listen_socket: {e}")
         break
 
-    print("[DEBUG] Saliendo del bucle de escucha del socket.")
+    print("[DEBUG] Saliendo del bucle de escucha del socket actual.")
 
   def send(self, msg):
     """Envía datos por el mismo socket bidireccional"""
@@ -100,9 +130,11 @@ class TcpPeer:
 
   def _send_async(self, msg):
     try:
-      # Añadimos un salto de línea (\n) al final para delimitar el paquete en TCP
-      packet = json.dumps({"message": msg}) + "\n"
-      self.conn.sendall(packet.encode("utf-8"))
+      if self.conn:
+        packet = json.dumps({"message": msg}) + "\n"
+        self.conn.sendall(packet.encode("utf-8"))
+      else:
+        print("\n[DEBUG] Intento de envío fallido: socket desconectado.")
     except Exception as e:
       print(f"\n[DEBUG] Error al enviar mensaje por el socket: {e}")
       print("Tú: ", end="", flush=True)
