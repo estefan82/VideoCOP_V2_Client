@@ -15,7 +15,7 @@ import configparser
 import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
-from udp_peer import UDPPeer
+from tcp_peer import TcpPeer
 
 """ Important
 for pi 3 or 4
@@ -150,18 +150,21 @@ class WebSocketClient:
         #self.clean_output_json()
 
         # ___________  UDP_PEER ______________
-        self.my_udp_port = 1001
-        self.target_udp_port = 1002
-        self.peer = UDPPeer(my_port=self.my_udp_port,
-                       target_port=self.target_udp_port,
-                       on_message=self.incoming_message
-                       )
+        self.intercom_port = 1001
+        self.peer = TcpPeer(port=self.intercom_port,
+                       role= "server")
 
-        self.peer.start_server()
+        self.peer.start(on_message=self.incoming_message)
         self.peer.send("Prueba desde control-client")
 
-    def incoming_message(self, msg):
-        print(f"Message from target: {msg}")
+    def incoming_message(self, data):
+        print(f"Message from target: {data}")
+
+        if data.get("call", False):
+            print("EMERGENCY SENT")
+
+            # Lanza la corrutina creando un bucle temporal para ella
+            asyncio.run(self.send_json(self.msg_type_server[1], "Emergency Call"))
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
@@ -1156,5 +1159,6 @@ if __name__ == "__main__":
 
     try:
         asyncio.run(client.connect())
-    except asyncio.CancelledError:
-        pass
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("\n[INFO] Closed by user...")
+        sys.exit(0)

@@ -6,7 +6,7 @@ import time
 import customtkinter as ctk
 import configparser
 import metadata as metadata
-from udp_peer import UDPPeer
+from tcp_peer import TcpPeer
 
 class VideoCopUI(ctk.CTk):
     def __init__(self):
@@ -199,57 +199,14 @@ class VideoCopUI(ctk.CTk):
         self.after(400, self.check_configuration_flow)
 
         # ___________  UDP_PEER ______________
-        self.my_udp_port = 1002
-        self.target_udp_port = 1001
-        self.peer = UDPPeer(my_port=self.my_udp_port,
-                       target_port=self.target_udp_port,
-                       on_message=self.incoming_message
-                       )
+        self.intercom_port = 1001
+        self.peer = TcpPeer(port=self.intercom_port,
+                            role="client")
 
-        self.peer.start_server()
-
-        #self.peer.send("Prueba desde ui-client")
+        self.peer.start(on_message=self.incoming_message)
+        self.peer.send("Prueba desde ui-client")
 
     # -------------------- Exchange funtion --------------------
-    def incoming_message00(self, data):
-        print (f"Message from target: {data}")
-
-        self.id_label.configure(text=f"ID: {data.get('id', '---')}")
-        msg = data.get("server_message", "")
-        if not msg:
-            msg = "Welcome to VideoCOP"
-        self.message_label.configure(text=msg)
-
-        if data.get("id"):
-            self.ui_status["id"]=data.get("id")
-        if data.get("status"):
-            self.ui_status["status"]=data.get("status")
-        if data.get("call_status"):
-            self.ui_status["call_status"]=data.get("call_status")
-        if data.get("audio_stream"):
-            self.ui_status["audio_stream"]=data.get("audio_stream")
-        if data.get("video_stream"):
-            self.ui_status["video_stream"]=data.get("video_stream")
-        if data.get("server_message"):
-            self.ui_status["server_message"]=data.get("server_message")
-        if data.get("only_text"):
-            self.ui_status["only_text"]=data.get("only_text")
-
-
-        if data.get("audio_stream") or data.get("video_stream") or data.get("only_text"):
-            #self.on_call()
-            self.btn_call.pack_forget()
-            self.btn_yes.pack(side="left", padx=30)
-            self.btn_no.pack(side="left", padx=30)
-            print("[INFO] Llamada iniciada")
-
-        if ui_status["audio_stream"] == False and ui_status["video_stream"] == False and ui_status["only_text"] == False:
-            """Finaliza la llamada"""
-            self.btn_yes.pack_forget()
-            self.btn_no.pack_forget()
-            self.btn_call.pack(side="left", padx=30)
-            # print("[INFO] Llamada finalizada automáticamente call reset")
-            print("[INFO] Call ended, call reset")
 
     def incoming_message(self, data):
         print(f"Message from target: {data}")
