@@ -252,14 +252,8 @@ class VideoCopUI(ctk.CTk):
             self.btn_call.pack(side="left", padx=30)
             print("[INFO] Call ended, call reset")
 
-    def outgoing_message(self, call=None, response=None):
-        data00 = {"call": "", "response": ""}
-        data = {}
-        if call is not None:
-            data["call"] = bool(call)
-        if response is not None:
-            data["response"] = response
-        self.peer.send(data)
+    def outgoing_message(self, msg):
+        self.peer.send(msg)
 
     def refresh(self):
         self.btn_call.pack_forget()
@@ -321,7 +315,7 @@ class VideoCopUI(ctk.CTk):
             self.after_cancel(self.call_timer)
             self.call_timer = None
             #self.input_json(call=True)
-            self.outgoing_message(call=True)
+            self.outgoing_message("sos")
             self.call_countdown = self.config.getint("setup", "call_countdown")
     def cancel_call_countdown(self, event=None):
         if self.call_timer:
@@ -330,7 +324,8 @@ class VideoCopUI(ctk.CTk):
             self.btn_call.configure(text="Call")
     def call_asap(self):
         #self.input_json(call=True)
-        self.outgoing_message(call=True)
+        self.outgoing_message("sos")
+        return
 
     # -------------------- UI LOGIC --------------------
     def on_call(self):
@@ -347,7 +342,7 @@ class VideoCopUI(ctk.CTk):
         print("[INFO] Call ended, call reset")
     def on_button(self, name):
         #self.input_json(response=name)
-        self.outgoing_message(response=name)
+        self.outgoing_message(name)
         print(f"[BUTTON] {name} pressed")
         time.sleep(1)
 
@@ -377,7 +372,6 @@ class VideoCopUI(ctk.CTk):
             self.on_call()
         if data.get("audio_stream")==False and data.get("video_stream")==False and data.get("only_text")==False:
             self.end_call()
-
 
     # -------------------- EXCHANGE JSON --------------------
     def input_json(self, call=None, response=None):
@@ -561,4 +555,5 @@ class ClientHostDialog(ctk.CTkToplevel):
 if __name__ == "__main__":
     app = VideoCopUI()
     app.after(300, lambda: app.refresh())
+    app.outgoing_message("Hello i am client")
     app.mainloop()

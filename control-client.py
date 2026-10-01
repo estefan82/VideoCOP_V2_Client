@@ -106,6 +106,16 @@ class WebSocketClient:
         self.last_call_state = False
         self.cooldown = 10 # segundos de cooldown para evitar múltiples llamadas seguidas
 
+        self.control_status = {
+            "id": "",
+            "status": "disconnected",
+            "call_status": False,
+            "audio_stream": False,
+            "video_stream": False,
+            "server_message": "",
+            "only_text": False
+        }
+
         # audio queue
         self.audio_queue = queue.Queue(maxsize=3) # Cola para audio entrante (bytes -> numpy int16 arrays)
         self.audio_stream = None # guard para el stream
@@ -155,16 +165,22 @@ class WebSocketClient:
                        role= "server")
 
         self.peer.start(on_message=self.incoming_message)
-        self.peer.send("Prueba desde control-client")
+        #self.peer.send("Prueba desde control-client")
 
-    def incoming_message(self, data):
-        print(f"Message from target: {data}")
-
-        if data.get("call", False):
+    def incoming_message(self, msg):
+        # msg type sos or SOS, yes or YES, no or NO
+        print(f"Message from target: {msg}")
+        msg = data.get("message", "")
+        if msg == "sos" or msg == "SOS":
             print("EMERGENCY SENT")
-
             # Lanza la corrutina creando un bucle temporal para ella
             asyncio.run(self.send_json(self.msg_type_server[1], "Emergency Call"))
+
+        elif msg == "no" or msg == "NO":
+            asyncio.run(self.send_json(self.msg_type_server[1], msg))
+
+        elif msg == "yes" or msg == "YES":
+            asyncio.run(self.send_json(self.msg_type_server[1], msg))
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
@@ -467,14 +483,28 @@ class WebSocketClient:
                         loop.add_signal_handler(signal.SIGTERM, loop.create_task, websocket.close_timeout)
 
                     print(" Conectado al servidor.")
-                    #self.output_json(self.client_id, True, audio_stream=False, video_stream=False, only_text=False)
-                    self.outgoing_message(id_str=self.client_id, status=True, audio_stream=False, video_stream=False, only_text=False)
+                    self.control_status = {
+                        "id": self.client_id,
+                        "status": "connected",
+                        "call_status": False,
+                        "audio_stream": False,
+                        "video_stream": False,
+                        "server_message": "",
+                        "only_text": False
+                    }
 
                     #clean input JSON once
                     #asyncio.create_task(self.clean_input_json())
 
                     # start loop for input JSON
                     #json_task = asyncio.create_task(self.update_json_loop())
+                    self.outgoing_message(
+                            id_str=self.client_id,
+                            status=True,
+                            audio_stream=False,
+                            video_stream=False,
+                            only_text=False)
+
 
                     await asyncio.gather(
                         self.listen_messages(),
@@ -1159,6 +1189,7 @@ if __name__ == "__main__":
 
     try:
         asyncio.run(client.connect())
+        client.outgoing_message("Hello i am server")
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("\n[INFO] Closed by user...")
         sys.exit(0)
