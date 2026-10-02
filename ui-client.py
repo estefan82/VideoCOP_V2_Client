@@ -1,10 +1,10 @@
-import json
 import os
 import sys
 import platform
 import time
 import customtkinter as ctk
 import configparser
+import datetime
 import metadata as metadata
 from tcp_peer import TcpPeer
 
@@ -198,6 +198,8 @@ class VideoCopUI(ctk.CTk):
 
         self.after(400, self.check_configuration_flow)
 
+        self.update_clock()
+
         # ___________  UDP_PEER ______________
         self.intercom_port = 1001
         self.peer = TcpPeer(port=self.intercom_port,
@@ -207,8 +209,7 @@ class VideoCopUI(ctk.CTk):
         #self.peer.send("Prueba desde ui-client")
 
     # -------------------- Exchange funtion --------------------
-
-    def incoming_message(self, data):
+    def incoming_message00(self, data):
         print(f"Message from target: {data}")
 
         # Actualizar etiquetas de la interfaz
@@ -227,6 +228,9 @@ class VideoCopUI(ctk.CTk):
             if key in data:
                 self.ui_status[key] = data[key]
 
+        print (self.ui_status)
+
+
         # Comprobar si hay alguna señal activa de llamada/streaming
         has_active_stream = (
                 data.get("audio_stream") or
@@ -241,6 +245,104 @@ class VideoCopUI(ctk.CTk):
             print("[INFO] Llamada iniciada")
 
         # Corregido: añadido self.ui_status (faltaba el self antes)
+        elif (
+                not self.ui_status.get("audio_stream", True) and
+                not self.ui_status.get("video_stream", True) and
+                not self.ui_status.get("only_text", True)
+        ):
+            """Finaliza la llamada"""
+            self.btn_yes.pack_forget()
+            self.btn_no.pack_forget()
+            self.btn_call.pack(side="left", padx=30)
+            print("[INFO] Call ended, call reset")
+
+        keys_to_update = [
+            "id", "status", "call_status", "audio_stream",
+            "video_stream", "server_message", "only_text"
+        ]
+        for key in keys_to_update:
+            if key in data:
+                self.ui_status[key] = data[key]
+
+        print(self.ui_status)
+
+    def incoming_message01(self, data):
+        print(f"Message from target: {data}")
+
+        if data.get("id", "") and data.get("status", "") == "connected":
+            self.id_label.configure(text=f"ID: {data.get('id', '---')}")
+            self.ui_status["id"] = data.get("id", "")
+            self.ui_status["status"] = data.get("status", "")
+        else:
+            self.id_label.configure(text=f"ID: ---")
+            self.ui_status["id"] = data.get("id", "")
+            self.ui_status["status"] = data.get("status", "")
+
+        if data.get("audio_stream", True) or data.get("video_stream", True) or data.get("only_text", True):
+            self.btn_call.pack_forget()
+            self.btn_yes.pack(side="left", padx=30)
+            self.btn_no.pack(side="left", padx=30)
+            print("[INFO] Llamada iniciada")
+
+        # Corregido: añadido self.ui_status (faltaba el self antes)
+        if not data.get("only_text", False):
+            """Finaliza la llamada"""
+            self.btn_yes.pack_forget()
+            self.btn_no.pack_forget()
+            self.btn_call.pack(side="left", padx=30)
+            print("[INFO] Call ended, call reset")
+
+        keys_to_update = [
+            "id", "status", "call_status", "audio_stream",
+            "video_stream", "server_message", "only_text"
+        ]
+        for key in keys_to_update:
+            if key in data:
+                self.ui_status[key] = data[key]
+
+        print(self.ui_status)
+
+    def incoming_message(self, data):
+        print(f"Message from target: {data}")
+
+        # 1. Actualizar self.ui_status de forma inteligente (resguardando id y status si no vienen)
+        for key, value in data.items():
+            if key in self.ui_status:
+                # Solo actualizamos si el valor que viene no está vacío (o si es una clave booleana/texto normal)
+                if key in ("id", "status") and not value:
+                    continue  # Si viene vacío, ignoramos para no borrar el estado anterior
+                self.ui_status[key] = value
+
+        print("Estado actual:", self.ui_status)  # Para depurar en consola
+
+        # 2. Evaluar la condición usando el estado acumulado protegido
+        current_status = self.ui_status.get("status")
+        current_id = self.ui_status.get("id")
+
+        if current_status == "connected" and current_id:
+            self.id_label.configure(text=f"ID: {current_id}")
+        else:
+            self.id_label.configure(text="ID: ---")
+
+        # 3. Actualizar el mensaje de texto de la interfaz
+        msg = self.ui_status.get("server_message", "")
+        if not msg:
+            msg = "Welcome to VideoCOP"
+        self.message_label.configure(text=msg)
+
+        # 4. Comprobar llamadas o streams activos
+        has_active_stream = (
+                self.ui_status.get("audio_stream") or
+                self.ui_status.get("video_stream") or
+                self.ui_status.get("only_text")
+        )
+
+        if has_active_stream:
+            self.btn_call.pack_forget()
+            self.btn_yes.pack(side="left", padx=30)
+            self.btn_no.pack(side="left", padx=30)
+            print("[INFO] Llamada iniciada")
+
         elif (
                 not self.ui_status.get("audio_stream", True) and
                 not self.ui_status.get("video_stream", True) and
@@ -346,70 +448,12 @@ class VideoCopUI(ctk.CTk):
         print(f"[BUTTON] {name} pressed")
         time.sleep(1)
 
-    # Not in use
-    def update_json_loop(self):
-        try:
-            if os.path.exists(self.output_path):
-                with open(self.output_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if data != self.json_data:
-                    self.json_data = data
-                    self.update_ui_from_json(data)
-            else:
-                self.message_label.configure(text="output.json not found...")
-        except Exception as e:
-            self.message_label.configure(text=f"[Error reading JSON]\n{e}")
-        #self.after(500, self.update_json_loop)
-
-    def update_ui_from_json(self, data):
-        print (data)
-        self.id_label.configure(text=f"ID: {data.get('id', '---')}")
-        msg = data.get("server_message", "")
-        if not msg:
-            msg = "Welcome to VideoCOP"
-        self.message_label.configure(text=msg)
-        if data.get("audio_stream") or data.get("video_stream") or data.get("only_text"):
-            self.on_call()
-        if data.get("audio_stream")==False and data.get("video_stream")==False and data.get("only_text")==False:
-            self.end_call()
-
-    # -------------------- EXCHANGE JSON --------------------
-    def input_json(self, call=None, response=None):
-        """
-                Crea o actualiza un archivo input JSON con el estado actual del cliente WebSocket.
-                Solo actualiza los campos que reciban un valor distinto de None.
-
-                Parámetros:
-                    call bool
-                    response str or None
-                """
-        """Create or update json file, actual websocket status
-        None enter values, will not update
-        Parameteres
-            call bool
-            response str ar None
-        """
-        try:
-            # Leer archivo existente si existe
-            if os.path.exists(self.input_path):
-                with open(self.input_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                data = {"call": "", "response": ""}
-
-            # Actualizar solo los valores que no son None
-            if call is not None:
-                data["call"] = bool(call)
-            if response is not None:
-                data["response"] = response
-
-            # Guardar cambios
-            with open(self.input_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-
-            print(f"[✓] input.json updated in {self.input_path}")
-        except Exception as e:
-            print(f"[!] Error updating input.json: {e}")
+    def update_clock(self):
+        """Actualiza la hora actual en el footer cada 1 segundo"""
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        version_text = getattr(metadata, "__version__", "...")
+        self.left_footer.configure(text=f"V: {version_text}  |  {current_time}")
+        self.after(1000, self.update_clock)
 
 # --- VENTANA MODAL PARA SOLICITAR ID CLIENTE ---
 class ClientIDDialog(ctk.CTkToplevel):

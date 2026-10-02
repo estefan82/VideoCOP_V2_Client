@@ -183,8 +183,7 @@ class WebSocketClient:
             asyncio.run(self.send_json(self.msg_type_server[1], msg))
 
         elif msg == "Hello i am client":
-            self.outgoing_message(id_str=self.client_id)
-
+            self.outgoing_message(id_str=self.client_id, status= self.control_status["status"])
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
@@ -200,7 +199,7 @@ class WebSocketClient:
                     server_message (str | None): Último mensaje del servidor.
                     only text mode (bool | None): Only text mode On (True)
                 """
-        data00 = {
+        data = {
             "id": "",
             "status": "disconnected",
             "call_status": False,
@@ -216,7 +215,7 @@ class WebSocketClient:
         if id_str is not None:
             data["id"] = id_str
         if status is not None:
-            data["status"] = "connected" if status else "disconnected"
+            data["status"] = status
         if audio_stream is not None:
             data["audio_stream"] = bool(audio_stream)
         if video_stream is not None:
@@ -504,7 +503,7 @@ class WebSocketClient:
                     #json_task = asyncio.create_task(self.update_json_loop())
                     self.outgoing_message(
                             id_str=self.client_id,
-                            status=True,
+                            status="connected",
                             audio_stream=False,
                             video_stream=False,
                             only_text=False)
@@ -527,7 +526,13 @@ class WebSocketClient:
             except Exception as e:
                 print(f"Error de conexión: {e}, exiting in 1s...")
                 #self.output_json(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
-                self.outgoing_message(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+                #self.outgoing_message(id_str="---",status=False, server_message="", audio_stream=False, video_stream=False, only_text=False)
+                self.outgoing_message(id_str="---",
+                                      status="disconnected",
+                                      server_message="",
+                                      audio_stream=False,
+                                      video_stream=False,
+                                      only_text=False)
                 await asyncio.sleep(1)
                 sys.exit(0)
 
@@ -1196,4 +1201,6 @@ if __name__ == "__main__":
         client.outgoing_message("Hello i am server")
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("\n[INFO] Closed by user...")
+        client.outgoing_message(id_str="---", status="disconnected", server_message="", audio_stream=False, video_stream=False,
+                              only_text=False)
         sys.exit(0)
