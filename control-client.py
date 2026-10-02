@@ -167,9 +167,9 @@ class WebSocketClient:
         self.peer.start(on_message=self.incoming_message)
         #self.peer.send("Prueba desde control-client")
 
-    def incoming_message(self, msg):
+    def incoming_message(self, data):
         # msg type sos or SOS, yes or YES, no or NO
-        print(f"Message from target: {msg}")
+        print(f"Message from target: {data}")
         msg = data.get("message", "")
         if msg == "sos" or msg == "SOS":
             print("EMERGENCY SENT")
@@ -181,6 +181,10 @@ class WebSocketClient:
 
         elif msg == "yes" or msg == "YES":
             asyncio.run(self.send_json(self.msg_type_server[1], msg))
+
+        elif msg == "Hello i am client":
+            self.outgoing_message(id_str=self.client_id)
+
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """

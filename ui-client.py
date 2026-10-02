@@ -204,7 +204,7 @@ class VideoCopUI(ctk.CTk):
                             role="client")
 
         self.peer.start(on_message=self.incoming_message)
-        self.peer.send("Prueba desde ui-client")
+        #self.peer.send("Prueba desde ui-client")
 
     # -------------------- Exchange funtion --------------------
 
