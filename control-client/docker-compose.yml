@@ -13,6 +13,6 @@ services:
     volumes:
       # Mapeamos la carpeta del host /home/videocop-config directamente a /app dentro del contenedor
       # De esta forma, el .ini y los .json vivirán y se persistirán en esa ruta de la Raspberry Pi.
-      - /home/videocop-config:/app
+      - /home/videocop-config:/app/control-client
     environment:
       - PYTHONUNBUFFERED=1
