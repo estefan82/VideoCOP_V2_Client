@@ -13,6 +13,7 @@ class TcpPeer:
     self.host = host
     self.conn = None
     self.running = True
+    self.lock = threading.Lock()
     self.pending_messages = deque(
         maxlen=max_pending
     )  # Cola con límite para mensajes pendientes
@@ -60,7 +61,7 @@ class TcpPeer:
     finally:
       server_sock.close()
 
-  def _run_client(self, on_message):
+  def _run_client00(self, on_message):
     while self.running:
       try:
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -85,6 +86,41 @@ class TcpPeer:
           except:
             pass
           self.conn = None
+
+      time.sleep(1.0)
+
+  def _run_client(self, on_message):
+    while self.running:
+      try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print(
+          f"[DEBUG] Intentando conectar al servidor en"
+          f" {self.host}:{self.port}..."
+        )
+        sock.connect((self.host, self.port))
+
+        with self.lock:
+          self.conn = sock
+
+        print(f"[DEBUG] ¡Conectado exitosamente con el servidor!")
+        self.flush_pending_messages()
+        self._listen_socket(on_message)
+
+      except (ConnectionRefusedError, socket.error):
+        print(
+          "[DEBUG] Servidor no disponible o conexión perdida."
+          " Reintentando en 1s..."
+        )
+      except Exception as e:
+        print(f"[DEBUG] Error inesperado en cliente: {e}")
+      finally:
+        with self.lock:
+          if self.conn:
+            try:
+              self.conn.close()
+            except:
+              pass
+            self.conn = None
 
       time.sleep(1.0)
 
@@ -147,7 +183,7 @@ class TcpPeer:
             target=self._send_async, args=(msg,), daemon=True
         ).start()
 
-  def _send_async(self, msg):
+  def _send_async00(self, msg):
     try:
       if self.conn:
         # Si pasas un diccionario, se envía tal cual. Si pasas un string, se envuelve.
@@ -162,6 +198,25 @@ class TcpPeer:
     except Exception as e:
       print(f"\n[DEBUG] Error al enviar mensaje por el socket: {e}")
       print("Tú: ", end="", flush=True)
+
+  def _send_async(self, msg):
+    with self.lock:
+      current_conn = self.conn
+
+    if current_conn:
+      try:
+        if isinstance(msg, dict):
+          packet = json.dumps(msg) + "\n"
+        else:
+          packet = json.dumps({"message": msg}) + "\n"
+        current_conn.sendall(packet.encode("utf-8"))
+      except Exception as e:
+        print(f"\n[DEBUG] Error al enviar mensaje, re-encolando: {e}")
+        # Si falla el envío, devolvemos el mensaje a la cola para no perderlo
+        self.pending_messages.appendleft(msg)
+    else:
+      print("\n[DEBUG] Socket desconectado. Guardando en cola.")
+      self.pending_messages.append(msg)
 
   def close(self):
     print("[DEBUG] Cerrando conexión y apagando peer...")
