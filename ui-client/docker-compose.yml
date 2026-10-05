@@ -1,13 +1,24 @@
 services:
-  gui:
+  videocop-client:
     build: .
     container_name: customtkinter-gui
     restart: unless-stopped
-    network_mode: "host"
+    network_mode: "host"              # Comparte red del host (puerto 1001 y red)
     environment:
       - DISPLAY=:0
       - WAYLAND_DISPLAY=wayland-0
       - XDG_RUNTIME_DIR=/run/user/1000
+      - XAUTHORITY=/app/.Xauthority   # <--- Ruta de la cookie dentro del contenedor
+      - PYTHONUNBUFFERED=1
+    devices:
+      - /dev/video0:/dev/video0       # Cámara / V4L2
+      - /dev/v4l:/dev/v4l
+      - /dev/snd:/dev/snd             # Sonido ALSA
+      - /dev/gpiochip4:/dev/gpiochip4 # GPIOs Raspberry Pi 5
+    privileged: true                  # Permisos de hardware
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /run/user/1000/wayland-0:/run/user/1000/wayland-0:rw
+      # Montamos la cookie de X11 del usuario del host (ajusta 'admin' si tu usuario es otro)
+      - /home/admin/.Xauthority:/app/.Xauthority:ro
+      - /home/videocop-config:/app/control-client
