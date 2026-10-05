@@ -1,9 +1,9 @@
 FROM python:3.10-slim
 
-# Instalar dependencias del sistema para Tkinter y soporte gráfico en ARM64
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias con nombres de paquetes actualizados para Debian moderno
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-tk \
-    libgl1-mesa-glx \
+    libgl1 \
     libx11-xcb1 \
     libxcb-randr0 \
     && rm -rf /var/lib/apt/lists/*
