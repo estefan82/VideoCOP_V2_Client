@@ -1,0 +1,22 @@
+sudo nano /etc/systemd/system/xhost-docker.service
+
+############################
+[Unit]
+Description=Permitir acceso X11 para Docker
+After=graphical.target
+
+[Service]
+Type=oneshot
+User=admin
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/admin/.Xauthority
+ExecStart=/usr/bin/xhost +local:docker
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target
+########################
+
+
+sudo systemctl daemon-reload
+sudo systemctl restart xhost-docker.service
