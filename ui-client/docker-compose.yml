@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     network_mode: "host"
     environment:
-      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - WAYLAND_DISPLAY=wayland-0
       - XDG_RUNTIME_DIR=/run/user/1000
     volumes:
-      - /run/user/1000/${WAYLAND_DISPLAY}:/run/user/1000/${WAYLAND_DISPLAY}
+      - /run/user/1000/wayland-0:/run/user/1000/wayland-0
