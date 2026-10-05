@@ -3,6 +3,8 @@ services:
     build: .
     container_name: videocop_client
     restart: unless-stopped
+    ports:
+      - "1001:1001"
     devices:
       - /dev/video0:/dev/video0       # Acceso a la cámara / V4L2
       - /dev/v4l:/dev/v4l
