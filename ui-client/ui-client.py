@@ -203,7 +203,7 @@ class VideoCopUI(ctk.CTk):
         # ___________  UDP_PEER ______________
         self.intercom_port = 1001
         self.peer = TcpPeer(port=self.intercom_port,
-                            role="client")
+                            role="client", host="videocop-server")
 
         self.peer.start(on_message=self.incoming_message)
         #self.peer.send("Prueba desde ui-client")
