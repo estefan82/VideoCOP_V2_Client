@@ -162,7 +162,7 @@ class WebSocketClient:
         # ___________  UDP_PEER ______________
         self.intercom_port = 1001
         self.peer = TcpPeer(port=self.intercom_port,
-                       role= "server")
+                       role= "server", host="0.0.0.0")
 
         self.peer.start(on_message=self.incoming_message)
         #self.peer.send("Prueba desde control-client")
