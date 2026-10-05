@@ -3,7 +3,8 @@ services:
     build: .
     container_name: customtkinter-gui
     restart: unless-stopped
-    network_mode: "host"
+    ports:
+      - "1001:1001"
     environment:
       - DISPLAY=:0
       - WAYLAND_DISPLAY=wayland-0
