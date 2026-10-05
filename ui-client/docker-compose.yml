@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  gui:
+    build: .
+    container_name: customtkinter-gui
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - XDG_RUNTIME_DIR=/run/user/1000
+    volumes:
+      - /run/user/1000/${WAYLAND_DISPLAY}:/run/user/1000/${WAYLAND_DISPLAY}
