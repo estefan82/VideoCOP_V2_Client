@@ -3,6 +3,7 @@ import json
 import socket
 import threading
 import time
+import traceback
 
 
 class TcpPeer:
@@ -223,7 +224,7 @@ class TcpPeer:
       print("\n[DEBUG] Socket desconectado. Guardando en cola.")
       self.pending_messages.append(msg)
 
-  def _send_async(self, msg):
+  def _send_async02(self, msg):
     with self.lock:
       if self.conn:
         try:
@@ -234,6 +235,25 @@ class TcpPeer:
           self.conn.sendall(packet.encode("utf-8"))
         except Exception as e:
           print(f"\n[DEBUG] Error al enviar mensaje, re-encolando: {e}")
+          self.pending_messages.appendleft(msg)
+      else:
+        print("\n[DEBUG] Socket desconectado. Guardando en cola.")
+        self.pending_messages.append(msg)
+
+  def _send_async(self, msg):
+    with self.lock:
+      if self.conn:
+        try:
+          if isinstance(msg, dict):
+            packet = json.dumps(msg) + "\n"
+          else:
+            packet = json.dumps({"message": msg}) + "\n"
+          self.conn.sendall(packet.encode("utf-8"))
+        except Exception as e:
+          print(f"\n[DEBUG] Error al enviar mensaje por el socket: {e}")
+          # --- AQUÍ AÑADIMOS EL TRACEBACK ---
+          traceback.print_exc()
+          # -----------------------------------
           self.pending_messages.appendleft(msg)
       else:
         print("\n[DEBUG] Socket desconectado. Guardando en cola.")
