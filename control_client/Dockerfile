@@ -1,21 +1,19 @@
-FROM python:3.11-slim-bookworm
-
-# Instalar dependencias del sistema operativo para OpenCV y PortAudio/ALSA
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
-    portaudio19-dev \
-    libasound2-dev \
-    libv4l-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias de Python
-COPY requirements.txt .
+# Instalar dependencias del sistema necesarias (audio, video, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar los requerimientos e instalarlos
+COPY control_client/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código fuente de tu app
-COPY . .
+# Copiar la carpeta core y el código del cliente
+COPY core/ ./core/
+COPY control_client/ ./control_client/
 
-CMD ["python", "control-client.py"]
+# Comando para ejecutar el script de control
+CMD ["python", "control_client/control-client.py"]
