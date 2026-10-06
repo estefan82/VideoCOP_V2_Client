@@ -5,8 +5,8 @@ import time
 import customtkinter as ctk
 import configparser
 import datetime
-import metadata as metadata
-from tcp_peer import TcpPeer
+from core import metadata as metadata
+from core import TcpPeer
 
 class VideoCopUI(ctk.CTk):
     def __init__(self):
@@ -25,19 +25,18 @@ class VideoCopUI(ctk.CTk):
             "only_text": False
         }
 
-        # --- Detectar ruta base correctamente ---
+        # --- Detectar ruta base y de configuración correctamente ---
         if getattr(sys, 'frozen', False):
             # Si está ejecutándose como ejecutable PyInstaller
             self.base_path = os.path.dirname(sys.executable)
+            self.config_path = os.path.join(self.base_path, "core", "ui-client.ini")
+            self.control_client_config_path = os.path.join(self.base_path, "core", "control-client.ini")
         else:
-            # Si está ejecutándose como script normal (python3)
+            # Si está ejecutándose como script normal (en tu carpeta ui-client/)
             self.base_path = os.path.dirname(os.path.abspath(__file__))
-
-        # --- Construir rutas ---
-        self.config_path = os.path.join(self.base_path, "ui-client.ini")
-        self.output_path = os.path.join(self.base_path, "output.json")
-        self.input_path = os.path.join(self.base_path, "input.json")
-        self.control_client_config_path = os.path.join(self.base_path, "control-client.ini")
+            root_dir = os.path.dirname(self.base_path)
+            self.config_path = os.path.join(root_dir, "core", "ui-client.ini")
+            self.control_client_config_path = os.path.join(root_dir, "core", "control-client.ini")
 
         # --- Leer configuración ---
         self.config = configparser.ConfigParser()
@@ -202,8 +201,8 @@ class VideoCopUI(ctk.CTk):
 
         # ___________  UDP_PEER ______________
         self.intercom_port = 1001
-        self.peer = TcpPeer(port=self.intercom_port,
-                            role="client", host="videocop-server")
+        #self.peer = TcpPeer(port=self.intercom_port, role="client", host="videocop-server")
+        self.peer = TcpPeer(port=self.intercom_port, role="client", host="127.0.0.1")
 
         self.peer.start(on_message=self.incoming_message)
         #self.peer.send("Prueba desde ui-client")
