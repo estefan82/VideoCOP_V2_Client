@@ -2,7 +2,7 @@ services:
   control-client:
     build:
       context: .
-      dockerfile: control-client/Dockerfile
+      dockerfile: control_client/Dockerfile
     container_name: videocop-server
     restart: unless-stopped
     networks:
@@ -18,7 +18,7 @@ services:
   ui-client:
     build:
       context: .
-      dockerfile: ui-client/Dockerfile
+      dockerfile: ui_client/Dockerfile
     container_name: videocop-ui-client
     restart: unless-stopped
     networks:
