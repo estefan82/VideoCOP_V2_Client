@@ -15,7 +15,7 @@ import configparser
 import metadata as metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
-from tcp_peer import TcpPeer
+from core.tcp_peer import TcpPeer
 
 """ Important
 for pi 3 or 4
@@ -33,26 +33,23 @@ class WebSocketClient:
         self.mic_capture_queue = None
         print(f">>> Starting {metadata.__name__} v: {metadata.__version__} <<<")
         # configparser
-        # --- Detectar ruta base correctamente ---
+
+        # --- Detectar ruta base y de configuración correctamente ---
         if getattr(sys, 'frozen', False):
-            # Si está ejecutándose como ejecutable PyInstaller
             self.base_path = os.path.dirname(sys.executable)
+            self.config_path = os.path.join(self.base_path, "core", "control-client.ini")
         else:
-            # Si está ejecutándose como script normal (python3)
             self.base_path = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(self.base_path)
+            self.config_path = os.path.join(root_dir, "core", "control-client.ini")
 
-        # --- Build Paths ---
-        self.config_path = os.path.join(self.base_path, "control-client.ini")
-        self.output_path = os.path.join(self.base_path, "output.json")
-        self.input_path = os.path.join(self.base_path, "input.json")
-
-        # --- Read configuration ---
+        # --- CARGAR CONFIGURACIÓN (¡Importante!) ---
         self.config = configparser.ConfigParser()
         self.config.read(self.config_path)
 
-        # --- Read parameters ---
+        # Ahora sí, leer las propiedades con total seguridad
         self.host = self.config["client"]["host"]
-        self.port = self.config.getint("client","port")
+        self.port = self.config.getint("client", "port")
 
         #config general
         self.config_version = self.config.get("general","version")
@@ -1186,8 +1183,13 @@ def get_or_wait_param(ext_client_id, ini_path, check_interval=2.0):
         time.sleep(check_interval)
 
 if __name__ == "__main__":
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    ini_path = os.path.join(base_path, "control-client.ini")
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+        ini_path = os.path.join(base_path, "core", "control-client.ini")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_path)  # Subimos a la raíz del proyecto
+        ini_path = os.path.join(root_dir, "core", "control-client.ini")
 
     arg_client_id = sys.argv[1] if len(sys.argv) > 1 else None
 
