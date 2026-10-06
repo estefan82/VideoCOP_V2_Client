@@ -2,7 +2,7 @@ services:
   control-client:
     build:
       context: .
-      dockerfile: control_client/Dockerfile
+      dockerfile: control-client/Dockerfile
     container_name: videocop-server
     restart: unless-stopped
     networks:
@@ -10,7 +10,6 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
-      # Si quieres mapear la carpeta core o los ini externos desde la Raspberry Pi:
       - /home/videocop-config:/app/core
     devices:
       - /dev/gpiochip4:/dev/gpiochip4
@@ -19,7 +18,7 @@ services:
   ui-client:
     build:
       context: .
-      dockerfile: ui_client/Dockerfile
+      dockerfile: ui-client/Dockerfile
     container_name: videocop-ui-client
     restart: unless-stopped
     networks:
@@ -39,7 +38,6 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /run/user/1000/wayland-0:/run/user/1000/wayland-0:rw
       - /home/admin/.Xauthority:/app/.Xauthority:ro
-      # Si también necesitas compartir la configuración aquí:
       - /home/videocop-config:/app/core
     depends_on:
       - control-client
