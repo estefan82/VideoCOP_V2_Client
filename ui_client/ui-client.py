@@ -208,99 +208,6 @@ class VideoCopUI(ctk.CTk):
         #self.peer.send("Prueba desde ui-client")
 
     # -------------------- Exchange funtion --------------------
-    def incoming_message00(self, data):
-        print(f"Message from target: {data}")
-
-        # Actualizar etiquetas de la interfaz
-        self.id_label.configure(text=f"ID: {data.get('id', '---')}")
-        msg = data.get("server_message", "")
-        if not msg:
-            msg = "Welcome to VideoCOP"
-        self.message_label.configure(text=msg)
-
-        # Actualizar self.ui_status de forma más limpia usando las claves que lleguen
-        keys_to_update = [
-            "id", "status", "call_status", "audio_stream",
-            "video_stream", "server_message", "only_text"
-        ]
-        for key in keys_to_update:
-            if key in data:
-                self.ui_status[key] = data[key]
-
-        print (self.ui_status)
-
-
-        # Comprobar si hay alguna señal activa de llamada/streaming
-        has_active_stream = (
-                data.get("audio_stream") or
-                data.get("video_stream") or
-                data.get("only_text")
-        )
-
-        if has_active_stream:
-            self.btn_call.pack_forget()
-            self.btn_yes.pack(side="left", padx=30)
-            self.btn_no.pack(side="left", padx=30)
-            print("[INFO] Llamada iniciada")
-
-        # Corregido: añadido self.ui_status (faltaba el self antes)
-        elif (
-                not self.ui_status.get("audio_stream", True) and
-                not self.ui_status.get("video_stream", True) and
-                not self.ui_status.get("only_text", True)
-        ):
-            """Finaliza la llamada"""
-            self.btn_yes.pack_forget()
-            self.btn_no.pack_forget()
-            self.btn_call.pack(side="left", padx=30)
-            print("[INFO] Call ended, call reset")
-
-        keys_to_update = [
-            "id", "status", "call_status", "audio_stream",
-            "video_stream", "server_message", "only_text"
-        ]
-        for key in keys_to_update:
-            if key in data:
-                self.ui_status[key] = data[key]
-
-        print(self.ui_status)
-
-    def incoming_message01(self, data):
-        print(f"Message from target: {data}")
-
-        if data.get("id", "") and data.get("status", "") == "connected":
-            self.id_label.configure(text=f"ID: {data.get('id', '---')}")
-            self.ui_status["id"] = data.get("id", "")
-            self.ui_status["status"] = data.get("status", "")
-        else:
-            self.id_label.configure(text=f"ID: ---")
-            self.ui_status["id"] = data.get("id", "")
-            self.ui_status["status"] = data.get("status", "")
-
-        if data.get("audio_stream", True) or data.get("video_stream", True) or data.get("only_text", True):
-            self.btn_call.pack_forget()
-            self.btn_yes.pack(side="left", padx=30)
-            self.btn_no.pack(side="left", padx=30)
-            print("[INFO] Llamada iniciada")
-
-        # Corregido: añadido self.ui_status (faltaba el self antes)
-        if not data.get("only_text", False):
-            """Finaliza la llamada"""
-            self.btn_yes.pack_forget()
-            self.btn_no.pack_forget()
-            self.btn_call.pack(side="left", padx=30)
-            print("[INFO] Call ended, call reset")
-
-        keys_to_update = [
-            "id", "status", "call_status", "audio_stream",
-            "video_stream", "server_message", "only_text"
-        ]
-        for key in keys_to_update:
-            if key in data:
-                self.ui_status[key] = data[key]
-
-        print(self.ui_status)
-
     def incoming_message(self, data):
         print(f"Message from target: {data}")
 
@@ -352,7 +259,6 @@ class VideoCopUI(ctk.CTk):
             self.btn_no.pack_forget()
             self.btn_call.pack(side="left", padx=30)
             print("[INFO] Call ended, call reset")
-
     def outgoing_message(self, msg):
         self.peer.send(msg)
 
@@ -596,7 +502,11 @@ class ClientHostDialog(ctk.CTkToplevel):
             config.write(f)
 
 if __name__ == "__main__":
-    app = VideoCopUI()
-    app.after(300, lambda: app.refresh())
-    app.outgoing_message("Hello i am client")
-    app.mainloop()
+    try:
+        app = VideoCopUI()
+        app.after(300, lambda: app.refresh())
+        app.outgoing_message("Hello i am client")
+        app.mainloop()
+    except KeyboardInterrupt:
+        print("[INFO] Closed by user...")
+        sys.exit(0)
