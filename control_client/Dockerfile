@@ -16,5 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY core/ ./core/
 COPY control_client/ ./control_client/
 
+ENV PYTHONPATH=/app
 # Comando para ejecutar el script de control
 CMD ["python", "control_client/control-client.py"]

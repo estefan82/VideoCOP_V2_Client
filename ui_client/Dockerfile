@@ -18,5 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY core/ ./core/
 COPY ui_client/ ./ui_client/
 
+ENV PYTHONPATH=/app
 # Ejecutar el script apuntando a su ruta correcta dentro de la carpeta
 CMD ["python", "ui_client/ui-client.py"]
