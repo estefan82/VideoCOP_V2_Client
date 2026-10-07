@@ -5,6 +5,7 @@ WORKDIR /app
 # Instalar dependencias del sistema necesarias (audio, video, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar los requerimientos e instalarlos
