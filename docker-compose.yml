@@ -9,6 +9,7 @@ services:
       - videocop-internal
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
     devices:
       - /dev/gpiochip4:/dev/gpiochip4
       - /dev/video0:/dev/video0
@@ -30,6 +31,7 @@ services:
       - XDG_RUNTIME_DIR=/run/user/1000
       - XAUTHORITY=/app/.Xauthority
       - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
     privileged: true
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
