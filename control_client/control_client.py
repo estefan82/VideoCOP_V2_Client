@@ -182,6 +182,10 @@ class WebSocketClient:
         elif msg == "Hello i am client":
             self.outgoing_message(id_str=self.client_id, status= self.control_status["status"])
 
+        elif msg == "ui_close":
+            print ("Exit command from UI")
+            sys.exit(0)
+
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
                 Envia por Socket a target.

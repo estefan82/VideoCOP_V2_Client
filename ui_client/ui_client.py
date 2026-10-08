@@ -509,4 +509,6 @@ if __name__ == "__main__":
         app.mainloop()
     except KeyboardInterrupt:
         print("[INFO] Closed by user...")
+        app.outgoing_message("ui_close")
+        time.sleep(0.2)
         sys.exit(0)
