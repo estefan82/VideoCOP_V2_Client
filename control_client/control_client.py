@@ -157,7 +157,7 @@ class WebSocketClient:
         #self.clean_output_json()
 
         # ___________  UDP_PEER ______________
-        self.intercom_port = 1001
+        self.intercom_port = 5001
         self.peer = TcpPeer(port=self.intercom_port, role= "server", host="0.0.0.0")
         #self.peer = TcpPeer(port=self.intercom_port, role="server", host="127.0.0.1")
 

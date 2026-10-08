@@ -200,7 +200,7 @@ class VideoCopUI(ctk.CTk):
         self.update_clock()
 
         # ___________  UDP_PEER ______________
-        self.intercom_port = 1001
+        self.intercom_port = 5001
         #self.peer = TcpPeer(port=self.intercom_port, role="client", host="videocop-server")
         self.peer = TcpPeer(port=self.intercom_port, role="client", host="127.0.0.1")
 
