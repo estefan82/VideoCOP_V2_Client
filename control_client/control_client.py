@@ -185,6 +185,8 @@ class WebSocketClient:
         elif msg == "ui_close":
             print ("Exit command from UI")
             asyncio.run(self.websocket_close())
+            sys.exit(0)
+
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
