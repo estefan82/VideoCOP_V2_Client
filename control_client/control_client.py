@@ -12,7 +12,7 @@ import numpy as np
 import sys
 import signal
 import configparser
-import metadata as metadata
+from core import metadata
 from datetime import datetime
 from websockets.asyncio.client import connect
 from core.tcp_peer import TcpPeer
