@@ -190,7 +190,6 @@ class WebSocketClient:
             print("Exit command from UI")
             self.request_close_control()
 
-
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
         """
                 Envia por Socket a target.
@@ -636,7 +635,7 @@ class WebSocketClient:
                     only_text=False
                 )
 
-                self.outgoing_message("Hello i am server")
+                #self.outgoing_message("Hello i am server")
 
                 await asyncio.gather(
                     self.listen_messages(),
