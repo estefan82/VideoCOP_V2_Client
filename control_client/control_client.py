@@ -31,6 +31,9 @@ To do
 class WebSocketClient:
     def __init__(self, ext_client_id=None):
         self.mic_capture_queue = None
+        self.websocket = None
+        self.websocket_loop = None
+
         print(f">>> Starting {metadata.__name__} v: {metadata.__version__} <<<")
         # configparser
 
@@ -184,7 +187,7 @@ class WebSocketClient:
 
         elif msg == "ui_close":
             print ("Exit command from UI")
-            asyncio.run(self.websocket_close())
+            asyncio.run(self.close_control())
             sys.exit(0)
 
 
@@ -473,7 +476,7 @@ class WebSocketClient:
         self.sending_cooldown = False
 
     # Connect block
-    async def connect(self):
+    async def connect00(self):
         print(f"OS detected: {os.name}")
 
         while True:
@@ -538,6 +541,58 @@ class WebSocketClient:
                                       only_text=False)
                 await asyncio.sleep(1)
                 sys.exit(0)
+
+    async def connect(self):
+        print(f"OS detected: {os.name}")
+
+        try:
+            print(f"Conectando a {self.uri} ...")
+
+            async with connect(
+                    self.uri,
+                    ping_interval=20
+            ) as websocket:
+
+                self.websocket = websocket
+
+                if os.name != "nt":
+                    loop = asyncio.get_running_loop()
+                    loop.add_signal_handler(
+                        signal.SIGTERM,
+                        lambda: asyncio.create_task(self.close_control())
+                    )
+
+                print("Conectado al servidor.")
+
+                self.control_status = {
+                    "id": self.client_id,
+                    "status": "connected",
+                    "call_status": False,
+                    "audio_stream": False,
+                    "video_stream": False,
+                    "server_message": "",
+                    "only_text": False
+                }
+
+                self.outgoing_message(
+                    id_str=self.client_id,
+                    status="connected",
+                    audio_stream=False,
+                    video_stream=False,
+                    only_text=False
+                )
+
+                await asyncio.gather(
+                    self.listen_messages(),
+                    self.send_json(self.msg_type_server[0], "Hello"),
+                    self.send_config(self.client_id),
+                )
+
+        except Exception as e:
+            print(f"Conexión cerrada o error: {e}")
+
+        finally:
+            await self.close_control()
 
     # Audio block (Optimizado para Baja Latencia y No Bloqueante), NO AEC
     def play_audio_chunk(self, audio_bytes):
@@ -1124,6 +1179,22 @@ class WebSocketClient:
                 print(f">>> Enviado: {text}")
 
     # Websocket close
+
+    async def close_control(self):
+        print("Cerrando conexión y finalizando script...")
+
+        websocket = self.websocket
+
+        if websocket is not None:
+            try:
+                await websocket.close()
+            except Exception as e:
+                print(f"Error cerrando WebSocket: {e}")
+            finally:
+                self.websocket = None
+
+        sys.exit(0)
+
     async def websocket_close(self):
         """
         Cierra de forma segura una conexión WebSocket y termina el script.
