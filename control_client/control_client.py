@@ -32,7 +32,8 @@ class WebSocketClient:
     def __init__(self, ext_client_id=None):
         self.mic_capture_queue = None
         self.websocket = None
-        self.websocket_loop = None
+        self.loop = None
+        self._closing = False
 
         print(f">>> Starting {metadata.__name__} v: {metadata.__version__} <<<")
         # configparser
@@ -186,9 +187,8 @@ class WebSocketClient:
             self.outgoing_message(id_str=self.client_id, status= self.control_status["status"])
 
         elif msg == "ui_close":
-            print ("Exit command from UI")
-            asyncio.run(self.close_control())
-            sys.exit(0)
+            print("Exit command from UI")
+            self.request_close_control()
 
 
     def outgoing_message(self, id_str=None, status=None, audio_stream=None, video_stream=None, server_message=None, only_text=None):
@@ -541,8 +541,10 @@ class WebSocketClient:
                                       only_text=False)
                 await asyncio.sleep(1)
                 sys.exit(0)
+    async def connect01(self):
 
-    async def connect(self):
+        self.loop = asyncio.get_running_loop()
+
         print(f"OS detected: {os.name}")
 
         try:
@@ -593,6 +595,59 @@ class WebSocketClient:
 
         finally:
             await self.close_control()
+
+    async def connect(self):
+        self.loop = asyncio.get_running_loop()
+
+        print(f"OS detected: {os.name}")
+
+        if os.name != "nt":
+            self.loop.add_signal_handler(
+                signal.SIGTERM,
+                self.request_close_control
+            )
+
+        try:
+            print(f"Conectando a {self.uri} ...")
+
+            async with connect(
+                    self.uri,
+                    ping_interval=20
+            ) as websocket:
+
+                self.websocket = websocket
+                print("Conectado al servidor.")
+
+                self.control_status = {
+                    "id": self.client_id,
+                    "status": "connected",
+                    "call_status": False,
+                    "audio_stream": False,
+                    "video_stream": False,
+                    "server_message": "",
+                    "only_text": False
+                }
+
+                self.outgoing_message(
+                    id_str=self.client_id,
+                    status="connected",
+                    audio_stream=False,
+                    video_stream=False,
+                    only_text=False
+                )
+
+                await asyncio.gather(
+                    self.listen_messages(),
+                    self.send_json(self.msg_type_server[0], "Hello"),
+                    self.send_config(self.client_id),
+                )
+
+        except Exception as e:
+            print(f"[ERROR] WebSocket desconectado: {e}")
+
+        finally:
+            if not self._closing:
+                await self.close_control()
 
     # Audio block (Optimizado para Baja Latencia y No Bloqueante), NO AEC
     def play_audio_chunk(self, audio_bytes):
@@ -1180,7 +1235,30 @@ class WebSocketClient:
 
     # Websocket close
 
+    def request_close_control(self):
+        loop = self.loop
+
+        if loop is None or loop.is_closed() or not loop.is_running():
+            print("[INFO] Event loop no disponible.")
+            return
+
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        if current_loop is loop:
+            loop.create_task(self.close_control())
+        else:
+            asyncio.run_coroutine_threadsafe(
+                self.close_control(),
+                loop
+            )
     async def close_control(self):
+        if self._closing:
+            return
+
+        self._closing = True
         print("Cerrando conexión y finalizando script...")
 
         websocket = self.websocket
@@ -1188,12 +1266,14 @@ class WebSocketClient:
         if websocket is not None:
             try:
                 await websocket.close()
+                print("[INFO] WebSocket cerrado correctamente.")
             except Exception as e:
-                print(f"Error cerrando WebSocket: {e}")
+                print(f"[ERROR] Cerrando WebSocket: {e}")
             finally:
                 self.websocket = None
 
-        sys.exit(0)
+        # Terminar el loop principal de forma ordenada.
+        asyncio.get_running_loop().stop()
 
     async def websocket_close(self):
         """
